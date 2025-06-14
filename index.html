@@ -174,16 +174,25 @@
         const { useState, useEffect, useRef } = React;
 
         const VanDeGraaffSimulator = () => {
+            const SCENARIOS = [
+                { id: 'basic', name: "Operación Básica", beltSpeed: 50, maxVoltage: 300000, dischargeTo: 'ground', showElectricField: true },
+                { id: 'human', name: "Descarga a Humano", beltSpeed: 60, maxVoltage: 250000, dischargeTo: 'person', showElectricField: true },
+                { id: 'conductor-test', name: "Prueba de Conductor", beltSpeed: 70, maxVoltage: 350000, dischargeTo: 'conductor', showElectricField: true }
+            ];
+
+            const defaultScenario = SCENARIOS[0];
+
             const [isRunning, setIsRunning] = useState(false);
             const [voltage, setVoltage] = useState(0);
-            const [maxVoltage, setMaxVoltage] = useState(300000);
-            const [beltSpeed, setBeltSpeed] = useState(50);
-            const [showElectricField, setShowElectricField] = useState(true);
+            const [maxVoltage, setMaxVoltage] = useState(defaultScenario.maxVoltage);
+            const [beltSpeed, setBeltSpeed] = useState(defaultScenario.beltSpeed);
+            const [showElectricField, setShowElectricField] = useState(defaultScenario.showElectricField);
             const [sparks, setSparks] = useState([]);
             const [charges, setCharges] = useState([]);
-            const [dischargeTo, setDischargeTo] = useState('ground');
+            const [dischargeTo, setDischargeTo] = useState(defaultScenario.dischargeTo);
             const [beltPosition, setBeltPosition] = useState(0);
             const [sparkIntensity, setSparkIntensity] = useState(0);
+            const [currentScenarioName, setCurrentScenarioName] = useState(defaultScenario.name);
             
             const animationRef = useRef();
             const canvasRef = useRef();
@@ -286,8 +295,20 @@
                 let currentX = 300; // Centro de la cúpula
                 let currentY = 120;
                 
-                const targetX = dischargeTo === 'ground' ? 300 + (Math.random() - 0.5) * 200 : 150;
-                const targetY = dischargeTo === 'ground' ? 450 : 250;
+                let targetX, targetY;
+                if (dischargeTo === 'ground') {
+                    targetX = 300 + (Math.random() - 0.5) * 150; // Adjusted randomness for ground
+                    targetY = 450 + (Math.random() - 0.5) * 40;
+                } else if (dischargeTo === 'person') {
+                    targetX = 150 + (Math.random() - 0.5) * 40;
+                    targetY = 250 + (Math.random() - 0.5) * 40;
+                } else if (dischargeTo === 'conductor') {
+                    targetX = 500 + (Math.random() - 0.5) * 40; // Target conductor around x=500, y=230
+                    targetY = 230 + (Math.random() - 0.5) * 40;
+                } else { // Default or fallback (should ideally not be reached if UI is correct)
+                    targetX = 300 + (Math.random() - 0.5) * 200;
+                    targetY = 450;
+                }
                 
                 for (let i = 0; i <= numPoints; i++) {
                     const progress = i / numPoints;
@@ -324,6 +345,30 @@
                 setCharges([]);
                 setSparks([]);
                 setSparkIntensity(0);
+                // Apply default scenario settings
+                setBeltSpeed(defaultScenario.beltSpeed);
+                setMaxVoltage(defaultScenario.maxVoltage);
+                setDischargeTo(defaultScenario.dischargeTo);
+                setShowElectricField(defaultScenario.showElectricField);
+                setCurrentScenarioName(defaultScenario.name);
+            };
+
+            const selectScenario = (scenario) => {
+                // Reset core simulation states before applying new scenario
+                setIsRunning(false);
+                setVoltage(0);
+                setCharges([]);
+                setSparks([]);
+                setSparkIntensity(0);
+
+                // Apply new scenario settings
+                setBeltSpeed(scenario.beltSpeed);
+                setMaxVoltage(scenario.maxVoltage);
+                setDischargeTo(scenario.dischargeTo);
+                setShowElectricField(scenario.showElectricField);
+                setVoltage(0); // Ensure voltage starts at 0 for the new scenario
+                setCurrentScenarioName(scenario.name);
+                setIsRunning(false); // Ensure simulation is not running when a scenario is selected
             };
 
             const renderElectricFieldLines = () => {
@@ -367,16 +412,30 @@
                     
                     if (y < 120 || progress > 1) return null;
                     
-                    return React.createElement('circle', {
-                        key: charge.id,
-                        cx: 300,
-                        cy: y,
-                        r: "4",
-                        fill: "#ffff00",
-                        stroke: "#ff8800",
-                        strokeWidth: "1",
-                        opacity: 1 - progress * 0.3
-                    });
+                    const chargeOpacity = 1 - progress * 0.3;
+
+                    return React.createElement('g', { key: charge.id, opacity: chargeOpacity }, [
+                        React.createElement('circle', {
+                            // key: charge.id, // Key is now on the group
+                            cx: 300,
+                            cy: y,
+                            r: "4",
+                            fill: "#4299e1", // Tailwind blue-500
+                            stroke: "#2b6cb0", // Tailwind blue-700
+                            strokeWidth: "0.5"
+                            // opacity: chargeOpacity // Opacity is now on the group
+                        }),
+                        React.createElement('text', {
+                            x: 300,
+                            y: y + 1, // Adjusted for better vertical centering with r=4
+                            fill: "white",
+                            fontSize: "7px",
+                            textAnchor: "middle",
+                            dominantBaseline: "middle",
+                            fontWeight: "bold"
+                            // opacity: chargeOpacity // Opacity is now on the group
+                        }, "+")
+                    ]);
                 });
             };
 
@@ -833,6 +892,32 @@
                                 key: "control-panel",
                                 className: "w-full xl:w-96 space-y-6"
                             }, [
+                                // Panel de Escenarios de Simulación
+                                React.createElement('div', {
+                                    id: "scenario-panel",
+                                    key: "scenario-panel",
+                                    className: "bg-gray-50 p-6 rounded-xl shadow-lg"
+                                }, [
+                                    React.createElement('h3', {
+                                        key: "scenario-title",
+                                        className: "text-xl font-bold mb-6 text-gray-800 text-center"
+                                    }, "🔬 Escenarios de Simulación"),
+                                    React.createElement('div', {
+                                        id: "scenario-buttons",
+                                        key: "scenario-buttons",
+                                        className: "space-y-3"
+                                    }, SCENARIOS.map(scenario => (
+                                        React.createElement('button', {
+                                            key: scenario.id,
+                                            onClick: () => selectScenario(scenario),
+                                            className: `w-full py-3 px-4 rounded-lg transition-all duration-200 ease-in-out ${
+                                                currentScenarioName === scenario.name
+                                                    ? 'bg-indigo-500 text-white font-semibold shadow-md'
+                                                    : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 hover:shadow-sm'
+                                            }`
+                                        }, scenario.name)
+                                    )))
+                                ]),
                                 React.createElement('div', {
                                     key: "main-controls",
                                     className: "bg-gray-50 p-6 rounded-xl shadow-lg"
