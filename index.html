@@ -19,6 +19,12 @@
                 <input type="checkbox" id="groundSwitch" disabled>
                 <span class="switch-display-ground" id="groundSwitchDisplay">(Not Grounded)</span>
             </div>
+            <div id="experiment-selection-area">
+                <button class="sim-button" id="btnExpVdgPrimary">VdG & Discharge Sphere</button>
+                <button class="sim-button" id="btnExpElectricPapers">Electric Papers</button>
+                <button class="sim-button" id="btnExpTwoSpheres">Two Spheres</button>
+                <button class="sim-button" id="btnExpNone">Reset All</button>
+            </div>
         </div>
 
         <svg id="simulationCanvas" width="800" height="600">
@@ -100,7 +106,46 @@
             <g id="sparksContainer"></g>
 
             <!-- Electric Papers Apparatus -->
+            <g id="electricPapersApparatus" transform="translate(450, 100)">
+                <!-- Insulating Stand -->
+                <rect id="papersStandBase" x="-20" y="30" width="40" height="15" fill="#a0522d" rx="3"/> <!-- Brownish, like wood or bakelite -->
+                <rect id="papersStandRod" x="-3" y="0" width="6" height="30" fill="#888888"/> <!-- Grey insulating rod -->
 
+                <!-- Conductive Rod/Plate holding the papers -->
+                <rect id="papersHolder" x="-25" y="-10" width="50" height="10" fill="#d0d0d0" stroke="#777" stroke-width="1" rx="2"/>
+                <g id="papersHolderCharges"></g>
+
+                <!-- Paper Strips/Pith Balls (initially hanging down) -->
+                <g id="paperStripsContainer">
+                    <path id="paperStrip1" d="M -15 -5 L -15 20 Q -10 25 -5 20 L -5 -5 Z" fill="#f0f0f0" stroke="#aaa" stroke-width="0.5" />
+                    <path id="paperStrip2" d="M 5 -5 L 5 20 Q 10 25 15 20 L 15 -5 Z" fill="#f0f0f0" stroke="#aaa" stroke-width="0.5" />
+                </g>
+                <text x="-25" y="55" font-family="Arial, sans-serif" font-size="12px" fill="#212529">Elec. Papers</text>
+            </g>
+
+            <!-- Two Spheres Attraction/Repulsion Apparatus -->
+            <g id="twoSpheresApparatus" transform="translate(500, 250)" style="visibility: hidden;">
+                <!-- Sphere A (connected to VdG dome) -->
+                <g id="sphereA_assembly">
+                    <rect id="sphereA_stand" x="-5" y="50" width="10" height="80" fill="#8B4513" rx="2"/>
+                    <line id="sphereA_wire" x1="0" y1="50" x2="0" y2="0" stroke="#777" stroke-width="1.5"/>
+                    <circle id="sphereA" cx="0" cy="0" r="15" fill="url(#metallicGradient)" stroke="#666" stroke-width="1"/>
+                    <path id="sphereA_strip" d="M 0 15 L 0 35 Z" stroke="#444" stroke-width="1.5" fill="none"/>
+                    <g id="sphereA_charges"></g>
+                </g>
+                <!-- Sphere B (connected to VdG base/ground) -->
+                <g id="sphereB_assembly" transform="translate(60, 0)"> <!-- Offset from Sphere A by 60px -->
+                    <rect id="sphereB_stand" x="-5" y="50" width="10" height="80" fill="#8B4513" rx="2"/>
+                    <line id="sphereB_wire" x1="0" y1="50" x2="0" y2="0" stroke="#777" stroke-width="1.5"/>
+                    <circle id="sphereB" cx="0" cy="0" r="15" fill="url(#metallicGradient)" stroke="#666" stroke-width="1"/>
+                    <path id="sphereB_strip" d="M 0 15 L 0 35 Z" stroke="#444" stroke-width="1.5" fill="none"/>
+                    <g id="sphereB_charges"></g>
+                </g>
+                <!-- Visual Connection Wires (paths will be defined/updated by JS for accuracy) -->
+                <path id="connectionToSphereA" d="M0 0" stroke="#aaa" stroke-width="2" fill="none" stroke-dasharray="4 2"/>
+                <path id="connectionToSphereB" d="M0 0" stroke="#aaa" stroke-width="2" fill="none" stroke-dasharray="4 2"/>
+                 <text x="0" y="145" font-family="Arial, sans-serif" font-size="12px" fill="#212529" text-anchor="middle">Two Spheres</text>
+            </g>
         </svg>
     </div>
     <script src="script.js" defer></script>

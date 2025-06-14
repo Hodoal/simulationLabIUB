@@ -7,9 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const powerSwitch = document.getElementById('powerSwitch');
     const powerSwitchDisplay = document.getElementById('powerSwitchDisplay');
     const groundSwitch = document.getElementById('groundSwitch');
-    const groundSwitchDisplay = document.getElementById('groundSwitchDisplay'); // Added for future use
+    const groundSwitchDisplay = document.getElementById('groundSwitchDisplay');
 
-    const mainDome = document.getElementById('mainDome'); // Used for radius
+    const mainDome = document.getElementById('mainDome');
     const mainDomeCharges = document.getElementById('mainDomeCharges');
     const electrometerNeedle = document.getElementById('electrometerNeedle');
     const beltRect = document.getElementById('belt');
@@ -23,8 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const papersHolderCharges = document.getElementById('papersHolderCharges');
     const paperStrip1 = document.getElementById('paperStrip1');
     const paperStrip2 = document.getElementById('paperStrip2');
-    const electrometerCase = document.getElementById('electrometerCase'); // Added
-    const electrometerPivot = document.getElementById('electrometerPivot'); // Added
+    const electrometerCase = document.getElementById('electrometerCase');
+    const electrometerPivot = document.getElementById('electrometerPivot');
 
     // VdG Components for styling
     const topRoller = document.getElementById('topRoller');
@@ -39,27 +39,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Discharge Sphere Components for styling
     const movableSphereStandBase = document.getElementById('movableSphereStandBase');
     const movableSphereArm = document.getElementById('movableSphereArm');
+    const electricPapersApparatus = document.getElementById('electricPapersApparatus');
+
+    // Two Spheres Apparatus elements
+    const twoSpheresApparatus = document.getElementById('twoSpheresApparatus');
+    const sphereA_assembly = document.getElementById('sphereA_assembly');
+    const sphereA = document.getElementById('sphereA');
+    const sphereA_charges = document.getElementById('sphereA_charges');
+    const sphereA_strip = document.getElementById('sphereA_strip');
+    const sphereB_assembly = document.getElementById('sphereB_assembly');
+    const sphereB = document.getElementById('sphereB');
+    const sphereB_charges = document.getElementById('sphereB_charges');
+    const sphereB_strip = document.getElementById('sphereB_strip');
+    const connectionToSphereA = document.getElementById('connectionToSphereA');
+    const connectionToSphereB = document.getElementById('connectionToSphereB');
 
 
     // Simulation state
     let isPowerOn = false;
-    let isGrounded = false; // Added for ground switch
+    let isGrounded = false;
     let currentCharge = 0;
-    const MAX_CHARGE = 100; // Max charge units
+    const MAX_CHARGE = 100;
     let chargeIntervalId = null;
-    const CHARGE_ACCUMULATION_RATE = 2; // Units per interval
-    const CHARGE_INTERVAL_MS = 200; // Milliseconds
+    const CHARGE_ACCUMULATION_RATE = 2;
+    const CHARGE_INTERVAL_MS = 200;
 
     const svgNS = "http://www.w3.org/2000/svg";
 
     // Belt Animation State
     let beltMarkings = [];
     const NUM_BELT_MARKINGS = 8;
-    const BELT_SPEED = 1.0; // Adjusted speed
+    const BELT_SPEED = 1.0;
     let beltAnimationId = null;
 
     // Dragging State
-    let isDraggingSphere = false;
+    let isDraggingSphere = false; // For main discharge sphere
     let dragOffsetX = 0;
     const DRAG_MIN_X = 355;
     const DRAG_MAX_X = 700;
@@ -72,6 +86,47 @@ document.addEventListener('DOMContentLoaded', () => {
     // Electric Papers State
     let papersHolderCharge = 0;
     const MAX_PAPERS_CHARGE = 50;
+    let currentPaperStrip1Angle = 0;
+    let currentPaperStrip2Angle = 0;
+
+    // Two Spheres State
+    let sphereA_charge = 0;
+    let sphereB_charge = 0;
+    const MAX_TWO_SPHERES_CHARGE = 30;
+    const MAX_STRIP_DEFLECTION_SPHERES = 30;
+    let currentSphereAStripAngle = 0;
+    let currentSphereBStripAngle = 0;
+
+    // Animation Constants
+    const STRIP_ANIMATION_SPEED = 0.1;
+
+
+    // Simulation State Management
+    const Experiments = {
+        NONE: 'none',
+        VDG_PRIMARY: 'vdg_primary',
+        ELECTRIC_PAPERS: 'electric_papers',
+        TWO_SPHERES: 'two_spheres'
+    };
+    let currentExperiment = Experiments.NONE;
+
+    const initialDischargeSphereY = 230;
+
+    let isDraggingSphereB = false;
+    let dragOffsetXB_relative = 0;
+    let sphereB_current_relative_X = 60;
+    const SPHERE_B_DRAG_MIN_X_RELATIVE = 35;
+    const SPHERE_B_DRAG_MAX_X_RELATIVE = 200;
+    const ATTRACTION_FORCE_FACTOR = 0.05;
+    const ATTRACTION_SNAP_DISTANCE_MARGIN = 10;
+    const SPHERE_REPULSION_ADJUST = 3;
+
+
+    // Experiment Selection Buttons
+    const btnExpVdgPrimary = document.getElementById('btnExpVdgPrimary');
+    const btnExpElectricPapers = document.getElementById('btnExpElectricPapers');
+    const btnExpNone = document.getElementById('btnExpNone');
+    const btnExpTwoSpheres = document.getElementById('btnExpTwoSpheres');
 
 
     // Event Listener for Power Switch
@@ -80,37 +135,24 @@ document.addEventListener('DOMContentLoaded', () => {
         powerSwitchDisplay.textContent = isPowerOn ? "(On)" : "(Off)";
 
         if (isPowerOn) {
-            if (!isGrounded) startChargeAccumulation(); // Only start if not grounded
+            if (!isGrounded) startChargeAccumulation();
             startBeltAnimation();
         } else {
-            stopChargeAccumulation(); // Power off stops accumulation regardless of ground
+            stopChargeAccumulation();
             stopBeltAnimation();
         }
         updateVisuals();
     });
 
-    // Ground Switch Listener
     groundSwitch.addEventListener('change', () => {
         isGrounded = groundSwitch.checked;
         groundSwitchDisplay.textContent = isGrounded ? "(Grounded)" : "(Not Grounded)";
 
         if (isGrounded) {
-            currentCharge = 0; // Immediately discharge
-            // If power is on, charge accumulation will be prevented by the check in setInterval
-            // No need to explicitly stopChargeAccumulation here unless we want to clear an existing interval
-            // for a different reason. The interval itself will just not increment currentCharge.
-            // However, if the logic is that grounding *stops* the motor/process, then:
-            // if (isPowerOn) {
-            //     powerSwitch.checked = false;
-            //     isPowerOn = false;
-            //     powerSwitchDisplay.textContent = "(Off)";
-            //     stopBeltAnimation();
-            //     stopChargeAccumulation(); // Also stop interval
-            // }
+            currentCharge = 0;
         } else {
-            // Ungrounded
             if (isPowerOn) {
-                startChargeAccumulation(); // Attempt to start if power is on
+                startChargeAccumulation();
             }
         }
         updateVisuals();
@@ -121,34 +163,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (chargeIntervalId !== null) return;
 
         chargeIntervalId = setInterval(() => {
-            if (isGrounded) { // If grounded, ensure charge is 0 and don't accumulate
+            if (isGrounded) {
                 if (currentCharge !== 0) {
                     currentCharge = 0;
-                    updateVisuals(); // Update visuals if charge was forced to 0
+                    updateVisuals();
                 }
-                return; // Don't accumulate if grounded
+                return;
             }
 
-            if (isPowerOn && currentCharge < MAX_CHARGE) { // Accumulate if power on and not grounded
+            if (isPowerOn && currentCharge < MAX_CHARGE) {
                 currentCharge += CHARGE_ACCUMULATION_RATE;
                 if (currentCharge > MAX_CHARGE) {
                     currentCharge = MAX_CHARGE;
                 }
-            } else if (!isPowerOn && currentCharge > 0) {
-                // Optional: natural dissipation if power is off
-                // currentCharge -= 0.5; // Slow dissipation
-                // if (currentCharge < 0) currentCharge = 0;
             }
-             // If power is off, interval should ideally be stopped by powerSwitch listener.
-            // This interval primarily handles accumulation.
-            // If power is on but charge is max, or power is off, no need to call updateVisuals from here repeatedly.
             if(isPowerOn && currentCharge < MAX_CHARGE){
                  updateVisuals();
-            } else if (!isPowerOn && currentCharge > 0) { // For dissipation if implemented
-                 // updateVisuals();
-            } else if (isPowerOn && currentCharge >= MAX_CHARGE){ // One final update if max charge reached
+            } else if (isPowerOn && currentCharge >= MAX_CHARGE){
                  updateVisuals();
-                 stopChargeAccumulation(); // Stop interval if max charge is reached and power is still on
+                 stopChargeAccumulation();
             }
 
         }, CHARGE_INTERVAL_MS);
@@ -160,31 +193,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderDomeCharges() {
-        mainDomeCharges.innerHTML = ''; // Clear existing charges
+        mainDomeCharges.innerHTML = '';
 
-        const domeRadius = parseFloat(mainDome.getAttribute('r')) || 80; // Default if not found
-        const domeCY = parseFloat(mainDome.getAttribute('cy')) || -245; // Default if not found
+        const domeRadius = parseFloat(mainDome.getAttribute('r')) || 80;
+        const domeCY = parseFloat(mainDome.getAttribute('cy')) || -245;
 
-        // Max ~15-20 charges for visual clarity, scales with currentCharge
         const chargeCount = Math.floor((currentCharge / MAX_CHARGE) * 20);
 
         for (let i = 0; i < chargeCount; i++) {
             const textElement = document.createElementNS(svgNS, "text");
 
             const angle = Math.random() * 2 * Math.PI;
-            const rFactor = 0.8 + Math.random() * 0.15; // Place charges slightly inside the dome's radius, with some depth
+            const rFactor = 0.8 + Math.random() * 0.15;
             const x = Math.cos(angle) * (domeRadius * rFactor);
             const y = domeCY + Math.sin(angle) * (domeRadius * rFactor);
 
             textElement.setAttribute('x', x.toFixed(2));
             textElement.setAttribute('y', y.toFixed(2));
             textElement.setAttribute('fill', '#e63946');
-            textElement.setAttribute('font-size', '16px'); // Adjusted font size
+            textElement.setAttribute('font-size', '16px');
             textElement.setAttribute('font-weight', 'bold');
             textElement.setAttribute('text-anchor', 'middle');
             textElement.setAttribute('dominant-baseline', 'middle');
             textElement.setAttribute('pointer-events', 'none');
-            textElement.setAttribute('filter', 'url(#subtleShadow)'); // Added filter
+            textElement.setAttribute('filter', 'url(#subtleShadow)');
             textElement.textContent = '+';
             mainDomeCharges.appendChild(textElement);
         }
@@ -192,25 +224,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateElectrometer() {
         const chargePercent = currentCharge / MAX_CHARGE;
-        // Needle rotates from -50 degrees (0 charge) to +50 degrees (max charge)
-        // Pivot point is (30,80) as per SVG definition
         const angle = (chargePercent * 100) - 50;
         electrometerNeedle.setAttribute('transform', `rotate(${angle} 30 80)`);
     }
 
     function updateVisuals() {
-        checkAndTriggerSpark(); // Call before rendering to reflect charge changes
+        checkAndTriggerSpark();
         renderDomeCharges();
         updateElectrometer();
         renderMovableSphereCharges();
         checkPapersConnectionAndTransferCharge();
         renderPapersHolderCharges();
-        updatePaperStrips(); // Added
+        updatePaperStrips();
+
+        if (currentExperiment === Experiments.TWO_SPHERES) {
+            if (!isDraggingSphereB) {
+                applyAttractionOrRepulsionBetweenSpheres();
+            }
+            transferChargeToTwoSpheres();
+            renderTwoSpheresCharges();
+            updateTwoSpheresStrips();
+            updateTwoSpheresConnections();
+        }
     }
 
-    // --- Spark Generation ---
     function checkAndTriggerSpark() {
-        // Calculate current gap (similar to renderMovableSphereCharges)
         const vdgMatrix = vanDeGraaffAssembly.transform.baseVal[0].matrix;
         const mainDomeGlobalX = vdgMatrix.e;
         const mainDomeGlobalY = vdgMatrix.f + parseFloat(mainDome.getAttribute('cy'));
@@ -227,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
             currentCharge -= CHARGE_REDUCTION_PER_SPARK;
             if (currentCharge < 0) currentCharge = 0;
 
-            // Create Spark Visual
             const sparkX1 = mainDomeGlobalX + mainDomeRadius;
             const sparkY1 = mainDomeGlobalY;
             const sparkX2 = movableSphereGlobalX - movableSphereRadius;
@@ -238,14 +275,12 @@ document.addEventListener('DOMContentLoaded', () => {
             sparkLine.setAttribute('y1', sparkY1.toFixed(2));
             sparkLine.setAttribute('x2', sparkX2.toFixed(2));
             sparkLine.setAttribute('y2', sparkY2.toFixed(2));
-            sparkLine.setAttribute('stroke', '#FFEB3B'); // Brighter yellow
+            sparkLine.setAttribute('stroke', '#FFEB3B');
             sparkLine.setAttribute('stroke-width', '4px');
             sparkLine.setAttribute('stroke-linecap', 'round');
             sparkLine.setAttribute('filter', 'url(#sparkGlow)');
-
             sparksContainer.appendChild(sparkLine);
 
-            // Add white core line
             const sparkCore = document.createElementNS(svgNS, "line");
             sparkCore.setAttribute('x1', sparkX1.toFixed(2));
             sparkCore.setAttribute('y1', sparkY1.toFixed(2));
@@ -267,142 +302,108 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
-    // --- Induced Charges on Movable Sphere ---
     function renderMovableSphereCharges() {
-        movableDischargeSphereCharges.innerHTML = ''; // Clear previous charges
-
-        // Get current positions and radii
+        movableDischargeSphereCharges.innerHTML = '';
         const vdgMatrix = vanDeGraaffAssembly.transform.baseVal[0].matrix;
-        const mainDomeGlobalX = vdgMatrix.e; // VdG assembly X (mainDome cx is 0 in its group)
+        const mainDomeGlobalX = vdgMatrix.e;
         const mainDomeRadius = parseFloat(mainDome.getAttribute('r'));
-
         const sphereAssemblyMatrix = dischargeSphereAssembly.transform.baseVal[0].matrix;
-        const movableSphereGlobalX = sphereAssemblyMatrix.e; // Movable sphere assembly X
+        const movableSphereGlobalX = sphereAssemblyMatrix.e;
         const movableSphereRadius = parseFloat(movableDischargeSphere.getAttribute('r'));
-        const movableSphereCY = parseFloat(movableDischargeSphere.getAttribute('cy')); // cy of sphere within its group
-
-        // Calculate gap between the right edge of main dome and left edge of movable sphere
+        const movableSphereCY = parseFloat(movableDischargeSphere.getAttribute('cy'));
         const gap = (movableSphereGlobalX - movableSphereRadius) - (mainDomeGlobalX + mainDomeRadius);
-
-        const inductionThresholdGap = 150; // Max gap for induction to start (tune this value)
+        const inductionThresholdGap = 150;
         const minChargeForInduction = 10;
 
         if (gap < inductionThresholdGap && currentCharge > minChargeForInduction) {
-            // Calculate number of induced charge pairs
-            // More charge & closer distance = more induced pairs
             let numInducedPairs = Math.floor(
                 (currentCharge / MAX_CHARGE) * 8 * (1 - Math.max(0, gap) / inductionThresholdGap)
-            ); // Max 8 pairs
+            );
             numInducedPairs = Math.max(0, Math.min(numInducedPairs, 8));
-
-            if (numInducedPairs === 0 && gap < inductionThresholdGap * 0.3) { // If very close and main dome charged
-                numInducedPairs = Math.max(1, Math.floor(currentCharge / MAX_CHARGE * 2)); // Show at least 1 or 2 pairs
+            if (numInducedPairs === 0 && gap < inductionThresholdGap * 0.3) {
+                numInducedPairs = Math.max(1, Math.floor(currentCharge / MAX_CHARGE * 2));
             }
-
-            const chargeRfactor = 0.8; // How far from center to place charges on sphere surface
-
+            const chargeRfactor = 0.8;
             for (let i = 0; i < numInducedPairs; i++) {
-                // Negative Charges (-) on the side facing the main dome (left side of movable sphere)
                 const negText = document.createElementNS(svgNS, "text");
-                const angleNeg = Math.PI / 2 + (Math.random() - 0.5) * (Math.PI * 0.9); // Left hemisphere spread
+                const angleNeg = Math.PI / 2 + (Math.random() - 0.5) * (Math.PI * 0.9);
                 const xNeg = Math.cos(angleNeg) * movableSphereRadius * chargeRfactor;
                 const yNeg = movableSphereCY + Math.sin(angleNeg) * movableSphereRadius * chargeRfactor;
-
                 negText.setAttribute('x', xNeg.toFixed(2));
                 negText.setAttribute('y', yNeg.toFixed(2));
                 negText.setAttribute('fill', '#4a90e2');
-                negText.setAttribute('font-size', '14px'); // Adjusted font size
+                negText.setAttribute('font-size', '14px');
                 negText.setAttribute('font-weight', 'bold');
                 negText.setAttribute('text-anchor', 'middle');
                 negText.setAttribute('dominant-baseline', 'middle');
                 negText.setAttribute('pointer-events', 'none');
-                negText.setAttribute('filter', 'url(#subtleShadow)'); // Added filter
+                negText.setAttribute('filter', 'url(#subtleShadow)');
                 negText.textContent = '-';
                 movableDischargeSphereCharges.appendChild(negText);
 
-                // Positive Charges (+) on the opposite side (right side of movable sphere)
                 const posText = document.createElementNS(svgNS, "text");
                 const anglePos = -Math.PI / 2 + (Math.random() - 0.5) * (Math.PI * 0.9);
                 const xPos = Math.cos(anglePos) * movableSphereRadius * chargeRfactor;
                 const yPos = movableSphereCY + Math.sin(anglePos) * movableSphereRadius * chargeRfactor;
-
                 posText.setAttribute('x', xPos.toFixed(2));
                 posText.setAttribute('y', yPos.toFixed(2));
                 posText.setAttribute('fill', '#e63946');
-                posText.setAttribute('font-size', '14px'); // Adjusted font size
+                posText.setAttribute('font-size', '14px');
                 posText.setAttribute('font-weight', 'bold');
                 posText.setAttribute('text-anchor', 'middle');
                 posText.setAttribute('dominant-baseline', 'middle');
                 posText.setAttribute('pointer-events', 'none');
-                posText.setAttribute('filter', 'url(#subtleShadow)'); // Added filter
+                posText.setAttribute('filter', 'url(#subtleShadow)');
                 posText.textContent = '+';
                 movableDischargeSphereCharges.appendChild(posText);
             }
         }
     }
 
+    groundSwitch.disabled = false;
 
-    // Initial setup
-    powerSwitchDisplay.textContent = isPowerOn ? "(On)" : "(Off)";
-    // groundSwitchDisplay.textContent = groundSwitch.checked ? "(Grounded)" : "(Not Grounded)";
-    groundSwitch.disabled = false; // Enable the ground switch
-
-    // --- Belt Animation Functions ---
     function createBeltMarkings() {
-        if (beltMarkings.length > 0) return; // Create only once
-
+        if (beltMarkings.length > 0) return;
         const beltX = parseFloat(beltRect.getAttribute('x'));
         const beltY = parseFloat(beltRect.getAttribute('y'));
         const beltWidth = parseFloat(beltRect.getAttribute('width'));
         const beltHeight = parseFloat(beltRect.getAttribute('height'));
-
         for (let i = 0; i < NUM_BELT_MARKINGS; i++) {
             const line = document.createElementNS(svgNS, "line");
             const yPos = beltY + (i * (beltHeight / NUM_BELT_MARKINGS));
-
             line.setAttribute('x1', (beltX + beltWidth * 0.15).toString());
             line.setAttribute('y1', yPos.toString());
             line.setAttribute('x2', (beltX + beltWidth * 0.85).toString());
             line.setAttribute('y2', yPos.toString());
-            line.setAttribute('stroke', '#212529'); // Darker color for markings
+            line.setAttribute('stroke', '#212529');
             line.setAttribute('stroke-width', '1.5');
-            line.setAttribute('stroke-dasharray', '2 2'); // Dashed lines for better effect
-
-            vanDeGraaffAssembly.appendChild(line); // Add to the same group as the belt
+            line.setAttribute('stroke-dasharray', '2 2');
+            vanDeGraaffAssembly.appendChild(line);
             beltMarkings.push(line);
         }
     }
 
     function animateBelt() {
-        if (!isPowerOn) return; // Stop if power is turned off during animation frame
-
+        if (!isPowerOn) return;
         const beltTopY = parseFloat(beltRect.getAttribute('y'));
         const beltHeight = parseFloat(beltRect.getAttribute('height'));
         const beltBottomY = beltTopY + beltHeight;
-
         for (const line of beltMarkings) {
             let currentY = parseFloat(line.getAttribute('y1'));
             currentY += BELT_SPEED;
-
             if (currentY > beltBottomY) {
-                // currentY = beltTopY + (currentY - beltBottomY); // Wrap around
-                currentY = beltTopY; // Simpler wrap to top
+                currentY = beltTopY;
             }
-
             line.setAttribute('y1', currentY.toString());
             line.setAttribute('y2', currentY.toString());
         }
-
         beltAnimationId = requestAnimationFrame(animateBelt);
     }
 
     function startBeltAnimation() {
-        createBeltMarkings(); // Ensure markings are created
-        // Make markings visible (if they were ever hidden)
+        createBeltMarkings();
         beltMarkings.forEach(line => line.style.display = '');
-
-        if (beltAnimationId === null && isPowerOn) { // Check isPowerOn again before starting
+        if (beltAnimationId === null && isPowerOn) {
             beltAnimationId = requestAnimationFrame(animateBelt);
         }
     }
@@ -412,28 +413,27 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelAnimationFrame(beltAnimationId);
             beltAnimationId = null;
         }
-        // Optional: hide or reset markings
-        // beltMarkings.forEach(line => line.style.display = 'none');
     }
 
-    // --- Drag and Drop for Discharge Sphere ---
     dischargeSphereAssembly.addEventListener('pointerdown', (event) => {
+        if (currentExperiment !== Experiments.VDG_PRIMARY && currentExperiment !== Experiments.NONE) {
+            if (currentExperiment === Experiments.ELECTRIC_PAPERS || currentExperiment === Experiments.TWO_SPHERES) { // Also disable for TWO_SPHERES
+                return;
+            }
+        }
         isDraggingSphere = true;
         dischargeSphereAssembly.style.cursor = 'grabbing';
-        // Get current translate values
         const currentTransform = dischargeSphereAssembly.transform.baseVal[0].matrix;
         dragOffsetX = event.clientX - currentTransform.e;
-        event.preventDefault(); // Optional: prevent text selection, etc.
+        event.preventDefault();
     });
 
     simulationCanvas.addEventListener('pointermove', (event) => {
         if (isDraggingSphere) {
             let newX = event.clientX - dragOffsetX;
-            newX = Math.max(DRAG_MIN_X, Math.min(newX, DRAG_MAX_X)); // Constrain X
-
-            const currentY = dischargeSphereAssembly.transform.baseVal[0].matrix.f; // Keep current Y
+            newX = Math.max(DRAG_MIN_X, Math.min(newX, DRAG_MAX_X));
+            const currentY = dischargeSphereAssembly.transform.baseVal[0].matrix.f;
             dischargeSphereAssembly.setAttribute('transform', `translate(${newX}, ${currentY})`);
-            // updateVisuals(); // For induction effects, sparks, etc. (call if needed during drag)
         }
     });
 
@@ -441,172 +441,135 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isDraggingSphere) {
             isDraggingSphere = false;
             dischargeSphereAssembly.style.cursor = 'grab';
-            updateVisuals(); // Final update after drag, for induction/sparks
+            updateVisuals();
         }
     };
-
     simulationCanvas.addEventListener('pointerup', stopDragging);
-    simulationCanvas.addEventListener('pointerleave', stopDragging); // Stop if mouse leaves canvas
+    simulationCanvas.addEventListener('pointerleave', stopDragging);
 
-    // --- Electric Papers Logic ---
     function checkPapersConnectionAndTransferCharge() {
-        if (isGrounded) { // If VDG is grounded, papers should also lose charge quickly
+        if (isGrounded) {
             if (papersHolderCharge !== 0) {
                 papersHolderCharge = 0;
             }
-            return; // No charge transfer or accumulation if VDG is grounded
+            return;
         }
-
         if (currentCharge > 10 && papersHolderCharge < MAX_PAPERS_CHARGE) {
             let chargeToTransfer = Math.min(
-                CHARGE_ACCUMULATION_RATE * 0.25, // Transfer a smaller portion
+                CHARGE_ACCUMULATION_RATE * 0.25,
                 MAX_PAPERS_CHARGE - papersHolderCharge,
-                currentCharge * 0.02 // Smaller fraction from dome
+                currentCharge * 0.02
             );
             chargeToTransfer = Math.max(0, chargeToTransfer);
-
             papersHolderCharge += chargeToTransfer;
-            // currentCharge -= chargeToTransfer; // Decide if papers draw significant charge from dome
             papersHolderCharge = Math.min(papersHolderCharge, MAX_PAPERS_CHARGE);
-
         } else if (currentCharge <= 10 && papersHolderCharge > 0) {
-            // If VdG loses charge (but not grounded), papers slowly lose charge
-            papersHolderCharge -= 0.25; // Slower discharge
+            papersHolderCharge -= 0.25;
             papersHolderCharge = Math.max(0, papersHolderCharge);
         }
     }
 
     function renderPapersHolderCharges() {
         papersHolderCharges.innerHTML = '';
-        const chargeCount = Math.floor((papersHolderCharge / MAX_PAPERS_CHARGE) * 8); // Max ~8 charges
-
+        const chargeCount = Math.floor((papersHolderCharge / MAX_PAPERS_CHARGE) * 8);
         const holderWidth = parseFloat(papersHolder.getAttribute('width'));
         const holderHeight = parseFloat(papersHolder.getAttribute('height'));
         const holderX = parseFloat(papersHolder.getAttribute('x'));
         const holderY = parseFloat(papersHolder.getAttribute('y'));
-
         for (let i = 0; i < chargeCount; i++) {
             const textElement = document.createElementNS(svgNS, "text");
-            // Position randomly on the papersHolder surface
             const x = holderX + (holderWidth * 0.1) + (Math.random() * holderWidth * 0.8);
             const y = holderY + (holderHeight * 0.2) + (Math.random() * holderHeight * 0.6);
-
             textElement.setAttribute('x', x.toFixed(2));
             textElement.setAttribute('y', y.toFixed(2));
             textElement.setAttribute('fill', '#e63946');
-            textElement.setAttribute('font-size', '10px'); // Adjusted font size
+            textElement.setAttribute('font-size', '10px');
             textElement.setAttribute('font-weight', 'bold');
             textElement.setAttribute('text-anchor', 'middle');
             textElement.setAttribute('dominant-baseline', 'middle');
             textElement.setAttribute('pointer-events', 'none');
-            textElement.setAttribute('filter', 'url(#subtleShadow)'); // Added filter
+            textElement.setAttribute('filter', 'url(#subtleShadow)');
             textElement.textContent = '+';
             papersHolderCharges.appendChild(textElement);
         }
     }
 
-
-    // --- Electric Papers Animation ---
     function updatePaperStrips() {
-        if (!paperStrip1 || !paperStrip2) return; // Ensure elements exist
+        if (!paperStrip1 || !paperStrip2) return;
 
         const chargeRatio = papersHolderCharge / MAX_PAPERS_CHARGE;
-        const maxDeflectionAngle = 60; // Max angle in degrees for each strip
-        const deflectionAngle = chargeRatio * maxDeflectionAngle;
+        const maxDeflectionAngle = 50;
 
-        // Pivot points based on their 'M' command in the 'd' attribute.
-        // paperStrip1 starts at M -15 -5
-        // paperStrip2 starts at M 5 -5
+        const targetAngle1 = -(chargeRatio * maxDeflectionAngle);
+        const targetAngle2 = chargeRatio * maxDeflectionAngle;
+
+        currentPaperStrip1Angle += (targetAngle1 - currentPaperStrip1Angle) * STRIP_ANIMATION_SPEED;
+        currentPaperStrip2Angle += (targetAngle2 - currentPaperStrip2Angle) * STRIP_ANIMATION_SPEED;
+
+        if (Math.abs(currentPaperStrip1Angle - targetAngle1) < 0.01) currentPaperStrip1Angle = targetAngle1;
+        if (Math.abs(currentPaperStrip2Angle - targetAngle2) < 0.01) currentPaperStrip2Angle = targetAngle2;
+
         const pivotX1 = -15;
         const pivotX2 = 5;
-        const pivotY = -5; // Common Y pivot, bottom edge of papersHolder
+        const pivotY = -5;
 
-        paperStrip1.setAttribute('transform', `rotate(${-deflectionAngle} ${pivotX1} ${pivotY})`);
-        paperStrip2.setAttribute('transform', `rotate(${deflectionAngle} ${pivotX2} ${pivotY})`);
+        paperStrip1.setAttribute('transform', `rotate(${currentPaperStrip1Angle.toFixed(2)} ${pivotX1} ${pivotY})`);
+        paperStrip2.setAttribute('transform', `rotate(${currentPaperStrip2Angle.toFixed(2)} ${pivotX2} ${pivotY})`);
     }
 
-
-    // --- Visual Initialization ---
     function initializeVisuals() {
-        // Main Dome
         mainDome.setAttribute('fill', 'url(#metallicGradient)');
-        // stroke and stroke-width are already set in HTML, but can be confirmed/overridden
-        mainDome.setAttribute('stroke', '#778ca3'); // Slightly bluish dark gray
+        mainDome.setAttribute('stroke', '#778ca3');
         mainDome.setAttribute('stroke-width', '2');
-
-        // Movable Discharge Sphere
         movableDischargeSphere.setAttribute('fill', 'url(#metallicGradient)');
         movableDischargeSphere.setAttribute('stroke', '#778ca3');
         movableDischargeSphere.setAttribute('stroke-width', '1.5');
-
-        // Rollers
-        topRoller.setAttribute('fill', '#6c757d'); // Dark gray
+        topRoller.setAttribute('fill', '#6c757d');
         topRoller.setAttribute('stroke', '#495057');
         topRoller.setAttribute('stroke-width', '1');
         bottomRoller.setAttribute('fill', '#6c757d');
         bottomRoller.setAttribute('stroke', '#495057');
         bottomRoller.setAttribute('stroke-width', '1');
-
-        // Belt
-        beltRect.setAttribute('fill', '#343a40'); // Very dark gray/black
-
-        // Support Column
-        supportColumn.setAttribute('fill', 'rgba(110, 120, 150, 0.4)'); // More pronounced translucent blue-grey
-        supportColumn.setAttribute('stroke', '#868e96'); // Keep existing stroke or adjust
+        beltRect.setAttribute('fill', '#343a40');
+        supportColumn.setAttribute('fill', 'rgba(110, 120, 150, 0.4)');
+        supportColumn.setAttribute('stroke', '#868e96');
         supportColumn.setAttribute('stroke-width', '1.5');
-
-        // Base Unit
-        basePlatform.setAttribute('fill', '#4a5568'); // Dark slate grey
+        basePlatform.setAttribute('fill', '#4a5568');
         basePlatform.setAttribute('stroke', '#2d3748');
         basePlatform.setAttribute('stroke-width', '1');
-        motorHousing.setAttribute('fill', '#718096'); // Slate grey
+        motorHousing.setAttribute('fill', '#718096');
         motorHousing.setAttribute('stroke', '#4a5568');
         motorHousing.setAttribute('stroke-width', '1');
-        motorAxle.setAttribute('fill', '#2d3748'); // Very dark
-
-        // Combs
-        topComb.setAttribute('stroke', '#2c3e50'); // Dark blue/grey
+        motorAxle.setAttribute('fill', '#2d3748');
+        topComb.setAttribute('stroke', '#2c3e50');
         topComb.setAttribute('stroke-width', '2');
         topComb.setAttribute('fill', 'none');
         bottomComb.setAttribute('stroke', '#2c3e50');
         bottomComb.setAttribute('stroke-width', '2');
         bottomComb.setAttribute('fill', 'none');
-
-        // Movable Sphere Stand/Arm
         movableSphereStandBase.setAttribute('fill', '#a0aec0');
         movableSphereStandBase.setAttribute('stroke', '#718096');
         movableSphereStandBase.setAttribute('stroke-width', '1');
         movableSphereArm.setAttribute('fill', '#cbd5e0');
         movableSphereArm.setAttribute('stroke', '#a0aec0');
         movableSphereArm.setAttribute('stroke-width', '0.5');
-
-        // Electrometer Case & Needle (already partially styled, confirm/enhance)
         electrometerCase.setAttribute('fill', '#e9ecef');
         electrometerCase.setAttribute('stroke', '#adb5bd');
         electrometerCase.setAttribute('stroke-width', '1.5');
-        electrometerCase.setAttribute('rx', '3'); // Rounded corners
-
-        electrometerNeedle.setAttribute('stroke', '#c92a2a'); // Strong red
+        electrometerCase.setAttribute('rx', '3');
+        electrometerNeedle.setAttribute('stroke', '#c92a2a');
         electrometerNeedle.setAttribute('stroke-width', '2.5');
-        // stroke-linecap="round" is already in HTML
-
-        // Electrometer Scale Markings
         const electrometerGroup = document.getElementById('electrometer');
         const emPivotX = 30, emPivotY = 80;
-        const scaleRadius = 32; // Slightly smaller than needle length from pivot
-        const scaleAngles = [-50, 0, 50]; // For 0, Mid, Max points of needle
+        const scaleRadius = 32;
+        const scaleAngles = [-50, 0, 50];
         const scaleLabels = ["0", "50", "100"];
-
         scaleAngles.forEach((angle, i) => {
-            const rad = (angle - 90) * Math.PI / 180; // Convert to SVG angle system (0 is right)
-
-            // Line start point (slightly offset from pivot for cleaner look)
-            const lineStartX = emPivotX + 3 * Math.cos(rad + Math.PI/2); // Perpendicular offset for line start
+            const rad = (angle - 90) * Math.PI / 180;
+            const lineStartX = emPivotX + 3 * Math.cos(rad + Math.PI/2);
             const lineStartY = emPivotY + 3 * Math.sin(rad + Math.PI/2);
-
             const x2 = emPivotX + scaleRadius * Math.cos(rad);
             const y2 = emPivotY + scaleRadius * Math.sin(rad);
-
             const line = document.createElementNS(svgNS, "line");
             line.setAttribute('x1', lineStartX.toFixed(2));
             line.setAttribute('y1', lineStartY.toFixed(2));
@@ -615,10 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
             line.setAttribute('stroke', '#495057');
             line.setAttribute('stroke-width', '1');
             electrometerGroup.appendChild(line);
-
-            const textX = emPivotX + (scaleRadius + 8) * Math.cos(rad); // Text further out
-            const textY = emPivotY + (scaleRadius + 8) * Math.sin(rad) + 3; // Adjust baseline for text
-
+            const textX = emPivotX + (scaleRadius + 8) * Math.cos(rad);
+            const textY = emPivotY + (scaleRadius + 8) * Math.sin(rad) + 3;
             const text = document.createElementNS(svgNS, "text");
             text.setAttribute('x', textX.toFixed(2));
             text.setAttribute('y', textY.toFixed(2));
@@ -628,26 +589,21 @@ document.addEventListener('DOMContentLoaded', () => {
             text.textContent = scaleLabels[i];
             electrometerGroup.appendChild(text);
         });
-        // Ensure needle and pivot are on top
         electrometerGroup.appendChild(electrometerNeedle);
-        electrometerPivot.setAttribute('fill', '#343a40'); // Darker pivot
+        electrometerPivot.setAttribute('fill', '#343a40');
         electrometerPivot.setAttribute('stroke', '#555');
         electrometerPivot.setAttribute('stroke-width', '0.5');
         electrometerGroup.appendChild(electrometerPivot);
-
-
-        // Electric Papers Apparatus Styling
-        papersStandBase.setAttribute('fill', '#A0522D'); // Sienna
+        papersStandBase.setAttribute('fill', '#A0522D');
         papersStandBase.setAttribute('stroke', '#5F381A');
         papersStandBase.setAttribute('stroke-width', '1');
-        papersStandRod.setAttribute('fill', '#D3D3D3'); // Light gray
+        papersStandRod.setAttribute('fill', '#D3D3D3');
         papersStandRod.setAttribute('stroke', '#888');
         papersStandRod.setAttribute('stroke-width', '0.5');
-        papersHolder.setAttribute('fill', '#E8E8E8'); // Very light gray
+        papersHolder.setAttribute('fill', '#E8E8E8');
         papersHolder.setAttribute('stroke', '#B0B0B0');
         papersHolder.setAttribute('stroke-width', '0.5');
-
-        paperStrip1.setAttribute('fill', '#fdfdfd'); // Off-white
+        paperStrip1.setAttribute('fill', '#fdfdfd');
         paperStrip1.setAttribute('stroke', '#D0D0D0');
         paperStrip1.setAttribute('stroke-width', '0.5');
         paperStrip1.setAttribute('opacity', '0.95');
@@ -657,13 +613,251 @@ document.addEventListener('DOMContentLoaded', () => {
         paperStrip2.setAttribute('opacity', '0.95');
     }
 
+    function setActiveExperiment(experimentType) {
+        currentExperiment = experimentType;
+        console.log("Current experiment set to:", currentExperiment);
+        document.querySelectorAll('.sim-button').forEach(btn => btn.classList.remove('active'));
+        if (experimentType === Experiments.VDG_PRIMARY) {
+            btnExpVdgPrimary.classList.add('active');
+        } else if (experimentType === Experiments.ELECTRIC_PAPERS) {
+            btnExpElectricPapers.classList.add('active');
+        } else if (experimentType === Experiments.TWO_SPHERES) {
+            const btnTwoSpheres = document.getElementById('btnExpTwoSpheres');
+            if (btnTwoSpheres) btnTwoSpheres.classList.add('active');
+        } else if (experimentType === Experiments.NONE) {
+            btnExpNone.classList.add('active');
+        }
+        updateApparatusVisibilityAndInteractivity();
+    }
+
+    function updateApparatusVisibilityAndInteractivity() {
+        powerSwitch.disabled = (currentExperiment === Experiments.NONE);
+        groundSwitch.disabled = (currentExperiment === Experiments.NONE);
+        vanDeGraaffAssembly.style.opacity = '1';
+        dischargeSphereAssembly.style.opacity = '0.3';
+        dischargeSphereAssembly.style.pointerEvents = 'none';
+        electricPapersApparatus.style.opacity = '0.3';
+        twoSpheresApparatus.style.visibility = 'hidden';
+        twoSpheresApparatus.style.opacity = '0.3';
+        sphereA_assembly.style.pointerEvents = 'none';
+        sphereB_assembly.style.pointerEvents = 'none';
+        sphereB_assembly.style.cursor = 'default';
+
+        switch (currentExperiment) {
+            case Experiments.VDG_PRIMARY:
+                dischargeSphereAssembly.style.opacity = '1';
+                dischargeSphereAssembly.style.pointerEvents = 'auto';
+                break;
+            case Experiments.ELECTRIC_PAPERS:
+                electricPapersApparatus.style.opacity = '1';
+                currentPaperStrip1Angle = 0;
+                currentPaperStrip2Angle = 0;
+                updatePaperStrips();
+                break;
+            case Experiments.TWO_SPHERES:
+                twoSpheresApparatus.style.visibility = 'visible';
+                twoSpheresApparatus.style.opacity = '1';
+                sphereA_assembly.style.pointerEvents = 'none';
+                sphereB_assembly.style.pointerEvents = 'auto';
+                sphereB_assembly.style.cursor = 'grab';
+                sphereB_current_relative_X = 60;
+                sphereB_assembly.setAttribute('transform', `translate(${sphereB_current_relative_X}, 0)`);
+                updateTwoSpheresConnections();
+                sphereA_charge = 0;
+                sphereB_charge = 0;
+                currentSphereAStripAngle = 0;
+                currentSphereBStripAngle = 0;
+                updateTwoSpheresStrips();
+                break;
+            case Experiments.NONE:
+                vanDeGraaffAssembly.style.opacity = '0.7';
+                if(isPowerOn) {
+                    powerSwitch.checked = false;
+                    powerSwitch.dispatchEvent(new Event('change'));
+                }
+                currentCharge = 0;
+                papersHolderCharge = 0;
+                sphereA_charge = 0;
+                sphereB_charge = 0;
+                currentPaperStrip1Angle = 0;
+                currentPaperStrip2Angle = 0;
+                currentSphereAStripAngle = 0;
+                currentSphereBStripAngle = 0;
+                break;
+        }
+        updateVisuals();
+    }
+
+    function applyAttractionOrRepulsionBetweenSpheres() {
+        if (currentExperiment !== Experiments.TWO_SPHERES) return;
+        const rA = parseFloat(sphereA.getAttribute('r'));
+        const rB = parseFloat(sphereB.getAttribute('r'));
+        const idealTouchingDistance = rA + rB + SPHERE_REPULSION_ADJUST;
+        let force = 0;
+        if (sphereA_charge > 5 && sphereB_charge < -5) {
+            const chargeProductFactor = (sphereA_charge / MAX_TWO_SPHERES_CHARGE) * (Math.abs(sphereB_charge) / MAX_TWO_SPHERES_CHARGE);
+            const distanceFactor = Math.max(1, (sphereB_current_relative_X - idealTouchingDistance) / 50);
+            force = -ATTRACTION_FORCE_FACTOR * chargeProductFactor * (1 / Math.pow(distanceFactor, 1.5));
+            if (sphereB_current_relative_X < idealTouchingDistance + ATTRACTION_SNAP_DISTANCE_MARGIN && sphereB_current_relative_X > idealTouchingDistance) {
+                 sphereB_current_relative_X = idealTouchingDistance;
+                 force = 0;
+            }
+        } else if ((sphereA_charge > 5 && sphereB_charge > 5) || (sphereA_charge < -5 && sphereB_charge < -5)) {
+            const chargeProductFactor = (Math.abs(sphereA_charge) / MAX_TWO_SPHERES_CHARGE) * (Math.abs(sphereB_charge) / MAX_TWO_SPHERES_CHARGE);
+            if (sphereB_current_relative_X < idealTouchingDistance + 50) {
+                 const distanceFactor = Math.max(1, (sphereB_current_relative_X - idealTouchingDistance) / 50);
+                 force = ATTRACTION_FORCE_FACTOR * chargeProductFactor * (1 / Math.pow(distanceFactor, 2)) * 2;
+            }
+        }
+        if (Math.abs(force) > 0.01) {
+            sphereB_current_relative_X += force;
+        }
+        sphereB_current_relative_X = Math.max(SPHERE_B_DRAG_MIN_X_RELATIVE, Math.min(sphereB_current_relative_X, SPHERE_B_DRAG_MAX_X_RELATIVE));
+        sphereB_assembly.setAttribute('transform', `translate(${sphereB_current_relative_X.toFixed(2)}, 0)`);
+    }
+
+    function updateTwoSpheresConnections() {
+        const vdgMatrix = vanDeGraaffAssembly.transform.baseVal[0].matrix;
+        const mainDomeGlobalX = vdgMatrix.e + parseFloat(mainDome.getAttribute('cx'));
+        const mainDomeGlobalY = vdgMatrix.f + parseFloat(mainDome.getAttribute('cy'));
+        const mainDomeRadius = parseFloat(mainDome.getAttribute('r'));
+        const basePlatformGlobalX = vdgMatrix.e + parseFloat(basePlatform.getAttribute('x')) + parseFloat(basePlatform.getAttribute('width')) / 2;
+        const basePlatformGlobalY = vdgMatrix.f + parseFloat(basePlatform.getAttribute('y'));
+        const twoSpheresMatrix = twoSpheresApparatus.transform.baseVal[0].matrix;
+        const sphereAGlobalX = twoSpheresMatrix.e + parseFloat(sphereA.getAttribute('cx'));
+        const sphereAGlobalY = twoSpheresMatrix.f + parseFloat(sphereA.getAttribute('cy'));
+        const sphereARadius = parseFloat(sphereA.getAttribute('r'));
+        const sphereBAssemblyMatrix = sphereB_assembly.transform.baseVal[0].matrix;
+        const sphereBGlobalX = twoSpheresMatrix.e + sphereBAssemblyMatrix.e + parseFloat(sphereB.getAttribute('cx'));
+        const sphereBGlobalY = twoSpheresMatrix.f + sphereBAssemblyMatrix.f + parseFloat(sphereB.getAttribute('cy'));
+        const sphereBRadius = parseFloat(sphereB.getAttribute('r'));
+        const connAX1 = mainDomeGlobalX + mainDomeRadius;
+        const connAY1 = mainDomeGlobalY;
+        const connAX2 = sphereAGlobalX - sphereARadius * 0.707;
+        const connAY2 = sphereAGlobalY - sphereARadius * 0.707;
+        connectionToSphereA.setAttribute('d', `M ${connAX1} ${connAY1} Q ${(connAX1 + connAX2)/2} ${connAY1 - 50} ${connAX2} ${connAY2}`);
+        const connBX1 = basePlatformGlobalX;
+        const connBY1 = basePlatformGlobalY;
+        const connBX2 = sphereBGlobalX - sphereBRadius * 0.707;
+        const connBY2 = sphereBGlobalY - sphereBRadius * 0.707;
+        connectionToSphereB.setAttribute('d', `M ${connBX1} ${connBY1} Q ${(connBX1 + connBX2)/2} ${connBY1 - 50} ${connBX2} ${connBY2}`);
+    }
+
+    function transferChargeToTwoSpheres() {
+        if (currentExperiment !== Experiments.TWO_SPHERES || !isPowerOn || isGrounded) {
+            if (sphereA_charge > 0) sphereA_charge -= 1;
+            sphereA_charge = Math.max(0, sphereA_charge);
+            if (sphereB_charge < 0) sphereB_charge += 1;
+            sphereB_charge = Math.min(0, sphereB_charge);
+            return;
+        }
+        if (currentCharge > 10 && sphereA_charge < MAX_TWO_SPHERES_CHARGE) {
+            let chargeTransferA = Math.min(
+                CHARGE_ACCUMULATION_RATE * 0.05,
+                MAX_TWO_SPHERES_CHARGE - sphereA_charge,
+                currentCharge * 0.005
+            );
+            chargeTransferA = Math.max(0, chargeTransferA);
+            sphereA_charge += chargeTransferA;
+            sphereA_charge = Math.min(sphereA_charge, MAX_TWO_SPHERES_CHARGE);
+        } else if (currentCharge <= 10 && sphereA_charge > 0) {
+             sphereA_charge -= 0.5;
+             sphereA_charge = Math.max(0, sphereA_charge);
+        }
+        if (currentCharge > 10 && Math.abs(sphereB_charge) < MAX_TWO_SPHERES_CHARGE) {
+            let chargeTransferB = Math.min(
+                CHARGE_ACCUMULATION_RATE * 0.05,
+                MAX_TWO_SPHERES_CHARGE - Math.abs(sphereB_charge)
+            );
+            chargeTransferB = Math.max(0, chargeTransferB);
+            sphereB_charge -= chargeTransferB;
+            sphereB_charge = Math.max(-MAX_TWO_SPHERES_CHARGE, sphereB_charge);
+        } else if (currentCharge <= 10 && sphereB_charge < 0) {
+            sphereB_charge += 0.5;
+            sphereB_charge = Math.min(0, sphereB_charge);
+        }
+        if (isGrounded) {
+            sphereA_charge = 0;
+            sphereB_charge = 0;
+        }
+    }
+
+    function renderTwoSpheresCharges() {
+        sphereA_charges.innerHTML = '';
+        sphereB_charges.innerHTML = '';
+        const chargeCountA = Math.floor((sphereA_charge / MAX_TWO_SPHERES_CHARGE) * 10);
+        const radiusA = parseFloat(sphereA.getAttribute('r'));
+        const cxA = parseFloat(sphereA.getAttribute('cx'));
+        const cyA = parseFloat(sphereA.getAttribute('cy'));
+        for (let i = 0; i < chargeCountA; i++) {
+            const textEl = document.createElementNS(svgNS, "text");
+            const angle = Math.random() * 2 * Math.PI;
+            const rFactor = 0.7;
+            const x = cxA + Math.cos(angle) * radiusA * rFactor;
+            const y = cyA + Math.sin(angle) * radiusA * rFactor;
+            textEl.setAttribute('x', x.toFixed(2));
+            textEl.setAttribute('y', y.toFixed(2));
+            textEl.setAttribute('fill', '#e63946');
+            textEl.setAttribute('font-size', '10px');
+            textEl.setAttribute('font-weight', 'bold');
+            textEl.setAttribute('text-anchor', 'middle');
+            textEl.setAttribute('dominant-baseline', 'middle');
+            textEl.setAttribute('filter', 'url(#subtleShadow)');
+            textEl.textContent = '+';
+            sphereA_charges.appendChild(textEl);
+        }
+        const chargeCountB = Math.floor((Math.abs(sphereB_charge) / MAX_TWO_SPHERES_CHARGE) * 10);
+        const radiusB = parseFloat(sphereB.getAttribute('r'));
+        const cxB = parseFloat(sphereB.getAttribute('cx'));
+        const cyB = parseFloat(sphereB.getAttribute('cy'));
+        for (let i = 0; i < chargeCountB; i++) {
+            const textEl = document.createElementNS(svgNS, "text");
+            const angle = Math.random() * 2 * Math.PI;
+            const rFactor = 0.7;
+            const x = cxB + Math.cos(angle) * radiusB * rFactor;
+            const y = cyB + Math.sin(angle) * radiusB * rFactor;
+            textEl.setAttribute('x', x.toFixed(2));
+            textEl.setAttribute('y', y.toFixed(2));
+            textEl.setAttribute('fill', '#4a90e2');
+            textEl.setAttribute('font-size', '10px');
+            textEl.setAttribute('font-weight', 'bold');
+            textEl.setAttribute('text-anchor', 'middle');
+            textEl.setAttribute('dominant-baseline', 'middle');
+            textEl.setAttribute('filter', 'url(#subtleShadow)');
+            textEl.textContent = '-';
+            sphereB_charges.appendChild(textEl);
+        }
+    }
+
+    function updateTwoSpheresStrips() {
+        if(!sphereA_strip || !sphereB_strip) return;
+
+        const deflectionA = (sphereA_charge / MAX_TWO_SPHERES_CHARGE) * MAX_STRIP_DEFLECTION_SPHERES;
+        sphereA_strip.setAttribute('transform', `rotate(${deflectionA} 0 15)`);
+
+        const deflectionB_abs = (Math.abs(sphereB_charge) / MAX_TWO_SPHERES_CHARGE) * MAX_STRIP_DEFLECTION_SPHERES;
+        sphereB_strip.setAttribute('transform', `rotate(${deflectionB_abs} 0 15)`);
+    }
+
 
     // --- Initial Setup Calls ---
     initializeVisuals(); // Apply the styles
 
     const initialSphereX = DRAG_MAX_X - 50;
-    const sphereY = 230;
-    dischargeSphereAssembly.setAttribute('transform', `translate(${initialSphereX}, ${sphereY})`);
+    dischargeSphereAssembly.setAttribute('transform', `translate(${initialSphereX}, ${initialDischargeSphereY})`);
 
-    updateVisuals(); // Set initial state of visuals
+    // Setup Experiment Button Listeners
+    btnExpVdgPrimary.addEventListener('click', () => setActiveExperiment(Experiments.VDG_PRIMARY));
+    btnExpElectricPapers.addEventListener('click', () => setActiveExperiment(Experiments.ELECTRIC_PAPERS));
+    const btnExpTwoSpheres = document.getElementById('btnExpTwoSpheres');
+    if (btnExpTwoSpheres) {
+         btnExpTwoSpheres.addEventListener('click', () => setActiveExperiment(Experiments.TWO_SPHERES));
+    } else {
+        console.warn("Button #btnExpTwoSpheres not found. UI for switching to this experiment is missing.");
+    }
+    btnExpNone.addEventListener('click', () => setActiveExperiment(Experiments.NONE));
+
+    setActiveExperiment(Experiments.VDG_PRIMARY); // Set default experiment
 });
+
+[end of script.js]
