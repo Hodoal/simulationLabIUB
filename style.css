@@ -1,0 +1,179 @@
+/* General Page Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f4f8; /* Light grayish-blue */
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+h1.page-title { /* Added a class for specificity */
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    width: 100%; /* Ensure it takes full width for centering if container is flex-column */
+}
+
+/* Simulator Container */
+#simulator-container {
+    background-color: #ffffff;
+    padding: 25px; /* Slightly more padding */
+    border-radius: 12px; /* Slightly more rounded */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); /* Deeper shadow */
+    display: flex;
+    flex-direction: column;
+    gap: 25px; /* Increased gap */
+    width: fit-content; /* Or max-width: 700px; for a fixed width */
+}
+
+/* Controls Area */
+#controls {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px; /* Increased gap */
+    background-color: #e9ecef;
+    padding: 20px; /* Increased padding */
+    border-radius: 8px;
+    border: 1px solid #ced4da; /* Light border for definition */
+}
+
+#controls > div { /* Direct children divs for grouping label/input */
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Increased gap */
+}
+
+#controls label {
+    font-size: 0.95em; /* Slightly larger */
+    color: #495057;
+    user-select: none; /* Prevent text selection on click */
+}
+
+/* Styling for default checkboxes for better visibility */
+input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+    width: 20px; /* Larger */
+    height: 20px; /* Larger */
+    accent-color: #007bff; /* Color for the checkmark/background when checked */
+}
+
+
+/* Sphere Controls Specific Div */
+#sphere-controls {
+    display: flex;
+    flex-direction: column; /* Stack paragraph and buttons */
+    align-items: center; /* Center items */
+    gap: 10px; /* Gap between paragraph and buttons container */
+}
+#sphere-controls p {
+    margin: 0 0 5px 0; /* Margin for the paragraph */
+    font-weight: bold;
+    color: #343a40;
+}
+#sphere-controls div.buttons-row { /* If needed for horizontal button layout */
+    display: flex;
+    gap: 10px;
+}
+
+
+/* Buttons (within #sphere-controls or general if preferred) */
+#sphere-controls button, .control-button { /* Added a general class for other potential buttons */
+    background-color: #007bff; /* Bootstrap primary blue */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px; /* Slightly more rounded */
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    font-size: 0.9em;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#sphere-controls button:hover, .control-button:hover {
+    background-color: #0056b3;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+#sphere-controls button:disabled, .control-button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.7;
+}
+
+/* SVG Canvas */
+#simulationCanvas {
+    border: 1px solid #ced4da; /* Adjusted border color */
+    border-radius: 8px;
+    /* A slightly more subtle gradient, or a solid color if preferred */
+    background: linear-gradient(to bottom, #e6f0ff, #d0e0ff); /* Lighter, softer blue sky gradient */
+    display: block; /* To avoid extra space if it's inline */
+    margin: 0 auto; /* Center if container is wider */
+}
+
+/* --- SVG Element Style Definitions (Comments for JS application strategy) --- */
+
+/* Van de Graaff Main Dome & Discharge Sphere (#mainDome, #dischargeSphere):
+   - Fill: Could use a radial gradient defined in SVG <defs> for a metallic look.
+     Example: fill: url(#metallicGradient);
+   - Stroke: A darker shade of the fill or a neutral dark gray like #555.
+   - Stroke-width: 1px or 2px.
+   Example CSS (if applied directly, but better via JS for dynamic changes or <defs>):
+   #mainDome, #dischargeSphere {
+       stroke: #555;
+       stroke-width: 1.5px;
+   }
+*/
+
+/* Charges (+/-) (dynamically created text elements):
+   - Positive (+): fill: #e63946; (a strong red)
+   - Negative (-): fill: #1d3557; (a strong blue)
+   - Font-size: 10px to 14px, depending on sphere size.
+   - Font-weight: bold.
+   - Text-anchor: middle.
+   - Dominant-baseline: middle.
+   - Pointer-events: none; (so they don't interfere with clicks on spheres if any)
+*/
+
+/* Electrometer (#electrometerCase, #electrometerNeedle, text labels):
+   - Case (#electrometerCase): fill: #e9ecef; stroke: #adb5bd; stroke-width: 1px;
+   - Needle (#electrometerNeedle): stroke: #d90429; (strong red) stroke-width: 2.5px; stroke-linecap: round;
+     transform-origin: 40px 70px; (pivot point in SVG coords for rotation)
+   - Scale/Markings (if added as static SVG text/lines): fill: #343a40; font-size: 8px;
+*/
+
+/* Sparks (dynamically created line elements):
+   - Stroke: #fca311; (a vibrant orange-yellow)
+   - Stroke-width: 2px to 4px (can be varied for visual effect).
+   - Stroke-linecap: round.
+   - Opacity: Can be animated from 1 to 0 quickly.
+   - Filter: url(#sparkGlow); (an SVG filter for a glow effect, defined in <defs>)
+*/
+
+/* SVG <defs> (to be added in index.html or dynamically via JS):
+    <defs>
+        <radialGradient id="metallicGradient" cx="50%" cy="40%" r="60%" fx="50%" fy="40%">
+            <stop offset="0%" style="stop-color:#f8f9fa;" />
+            <stop offset="60%" style="stop-color:#ced4da;" />
+            <stop offset="100%" style="stop-color:#adb5bd;" />
+        </radialGradient>
+        <filter id="sparkGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur"/>
+            <feOffset in="blur" dx="0" dy="0" result="offsetBlur"/>
+            <feFlood flood-color="#ffff99" flood-opacity="0.75" result="flood"/>
+            <feComposite in="flood" in2="offsetBlur" operator="in" result="glow"/>
+            <feMerge>
+                <feMergeNode in="glow"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    </defs>
+*/
