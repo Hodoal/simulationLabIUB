@@ -878,8 +878,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ensure this matches the HTML for the advanced model discharge sphere
     if(dischargeSphereApparatus) dischargeSphereApparatus.setAttribute('transform', `translate(${initialDischargeSphereX}, ${initialDischargeSphereY})`);
 
-    if(btnExpVdgPrimary) btnExpVdgPrimary.addEventListener('click', () => setActiveExperiment(Experiments.VDG_DISCHARGE_SPHERE));
-    if(btnExpElectricPapers) btnExpElectricPapers.addEventListener('click', () => setActiveExperiment(Experiments.ELECTRIC_PAPERS));
+    // Setup Experiment Button Listeners
+    btnExpVdgPrimary.addEventListener('click', () => setActiveExperiment(Experiments.VDG_PRIMARY));
+    btnExpElectricPapers.addEventListener('click', () => setActiveExperiment(Experiments.ELECTRIC_PAPERS));
     const btnExpTwoSpheres = document.getElementById('btnExpTwoSpheres');
     if (btnExpTwoSpheres) {
          btnExpTwoSpheres.addEventListener('click', () => setActiveExperiment(Experiments.TWO_BUNCHES));
@@ -888,3 +889,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setActiveExperiment(Experiments.VDG_DISCHARGE_SPHERE); // Default to advanced VDG sphere
 });
+
+[end of script.js]
