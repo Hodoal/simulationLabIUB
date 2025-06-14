@@ -3,148 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Van de Graaff Simulator</title>
+    <title>Vascak-style Van de Graaff Simulator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app-container">
-        <div id="controls-area">
-            <div>
-                <label for="powerSwitch">Generator Power:</label>
-                <input type="checkbox" id="powerSwitch">
-                <span class="switch-display" id="powerSwitchDisplay">(Off)</span>
-            </div>
-            <div>
-                <label for="groundSwitch">Ground Dome:</label>
-                <input type="checkbox" id="groundSwitch" disabled>
-                <span class="switch-display-ground" id="groundSwitchDisplay">(Not Grounded)</span>
-            </div>
-            <div id="experiment-selection-area">
-                <button class="sim-button" id="btnExpVdgPrimary">VdG & Discharge Sphere</button>
-                <button class="sim-button" id="btnExpElectricPapers">Electric Papers</button>
-                <button class="sim-button" id="btnExpTwoSpheres">Two Spheres</button>
-                <button class="sim-button" id="btnExpNone">Reset All</button>
-            </div>
+    <div id="simulatorContainer" style="text-align: center;">
+        <div id="controlsArea" style="margin-bottom: 10px;">
+            <label>Power: <input type="checkbox" id="powerSwitch"></label>
+            <label>Ground: <input type="checkbox" id="groundSwitch"></label>
         </div>
 
-        <svg id="simulationCanvas" width="800" height="600">
-            <defs>
-                <radialGradient id="metallicGradient" cx="50%" cy="40%" r="60%" fx="50%" fy="40%">
-                    <stop offset="0%" style="stop-color:#f8f9fa;" /> <!-- Lighter highlight -->
-                    <stop offset="60%" style="stop-color:#ced4da;" /> <!-- Mid tone -->
-                    <stop offset="100%" style="stop-color:#adb5bd;" /> <!-- Darker base/shadow -->
-                </radialGradient>
-                <filter id="sparkGlow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
-                    <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-                <filter id="subtleShadow" x="-40%" y="-40%" width="180%" height="180%">
-                  <feDropShadow dx="0.5" dy="0.5" stdDeviation="0.5" flood-color="#000000" flood-opacity="0.5"/>
-                </filter>
-            </defs>
-            <rect width="100%" height="100%" fill="#e9ecef" /> <!-- Temporary background -->
+        <svg id="simulationCanvas" width="400" height="300" style="border: 1px solid #ccc; background-color: #f0f8ff;">
 
-            <!-- Van de Graaff Generator Assembly: Centered roughly, base will be at y=350 -->
-            <g id="vanDeGraaffAssembly" transform="translate(250, 350)">
-                <!-- Base Unit: Positioned so its top (y=0 of its own coord system) is at the assembly's (0,0) for easier column placement -->
-                <g id="generatorBaseUnit" transform="translate(0, 0)">
-                    <rect id="basePlatform" x="-80" y="0" width="160" height="30" fill="#6c757d" rx="5"/>
-                    <rect id="motorHousing" x="-50" y="-30" width="100" height="40" fill="#adb5bd" rx="5"/>
-                    <circle id="motorAxle" cx="0" cy="-10" r="10" fill="#545b62"/>
-                </g>
-
-                <!-- Support Column: y is negative to go upwards from base unit's top. Height 200, base is at y=0, so top is at y=-200 -->
-                <rect id="supportColumn" x="-30" y="-200" width="60" height="200" fill="rgba(200, 200, 250, 0.4)" stroke="#868e96" stroke-width="1.5" rx="3"/>
-
-                <!-- Bottom Roller: Positioned inside the bottom of the column, just above the motor housing's top. Column bottom is at y=0. -->
-                <ellipse id="bottomRoller" cx="0" cy="-15" rx="25" ry="10" fill="#868e96"/>
-
-                <!-- Belt: Runs from bottom roller to top roller. Column top is y=-200. -->
-                <rect id="belt" x="-20" y="-195" width="40" height="180" fill="#343a40" />
-
-                <!-- Top Roller: Positioned inside the top of the column. -->
-                <ellipse id="topRoller" cx="0" cy="-195" rx="25" ry="10" fill="#868e96"/>
-
-                <!-- Main Dome: Positioned above the column. Column top is y=-200. Dome cy is further up. -->
-                <circle id="mainDome" cx="0" cy="-245" r="80" fill="#ced4da" stroke="#868e96" stroke-width="2.5"/>
-
-                <!-- Charges Container for Main Dome -->
-                <g id="mainDomeCharges"></g>
-
-                <!-- Optional Bottom Comb: Near bottom roller. y is relative to vanDeGraaffAssembly. -->
-                <path id="bottomComb" d="M -25,-30 L 25,-30 M -20,-25 L -20,-35 M -10,-25 L -10,-35 M 0,-25 L 0,-35 M 10,-25 L 10,-35 M 20,-25 L 20,-35" stroke="#495057" stroke-width="1.5"/>
-
-                <!-- Optional Top Comb: Near top roller, inside dome. y is relative to vanDeGraaffAssembly. -->
-                <path id="topComb" d="M -25,-180 L 25,-180 M -20,-175 L -20,-185 M -10,-175 L -10,-185 M 0,-175 L 0,-185 M 10,-175 L 10,-185 M 20,-175 L 20,-185" stroke="#495057" stroke-width="1.5"/>
+            <!-- Electrometer Group -->
+            <g id="electrometer" transform="translate(30, 150)">
+                <rect id="electrometerCase" x="0" y="-30" width="40" height="60" fill="#f0f0f0" stroke="#888" stroke-width="1"/>
+                <circle id="electrometerPivot" cx="20" cy="20" r="2" fill="#333"/>
+                <line id="electrometerNeedle" x1="20" y1="20" x2="20" y2="-20" stroke="red" stroke-width="2" transform="rotate(0 20 20)"/>
+                <text x="5" y="25" font-size="10px" fill="#333">0</text>
+                <text x="30" y="-25" font-size="10px" fill="#333" text-anchor="end">Max</text>
             </g>
 
-            <!-- Placeholder for Electrometer -->
-            <g id="electrometer" transform="translate(50, 50)">
-                <rect id="electrometerCase" x="0" y="0" width="60" height="100" fill="#f0f0f0" stroke="#ccc" stroke-width="1"/>
-                <line id="electrometerNeedle" x1="30" y1="80" x2="30" y2="20" stroke="#e60000" stroke-width="2" stroke-linecap="round"/>
-                <!-- Scale markings "0" and "Max" removed, will be added by JS -->
-                <circle id="electrometerPivot" cx="30" cy="80" r="3" fill="#333"/> <!-- Pivot for needle, added id -->
+            <!-- Van de Graaff Generator Group -->
+            <g id="vdgGenerator" transform="translate(200, 200)">
+                <rect id="vdgStandBase" x="-40" y="0" width="80" height="20" fill="#d3d3d3" stroke="#aaa"/>
+                <rect id="vdgColumn" x="-10" y="-80" width="20" height="80" fill="#d3d3d3" stroke="#aaa"/>
+                <circle id="mainDome" cx="0" cy="-110" r="40" fill="#silver" stroke="#777"/>
+                <g id="domeCharges"></g> <!-- Charges Container -->
             </g>
 
-            <!-- Placeholder for Discharge Sphere Assembly -->
-            <!-- VdG Assembly Y = 350. Main Dome cy = -245. True Main Dome Center Y = 350 - 245 = 105. -->
-            <!-- Discharge Sphere cy = -125. Target True Discharge Sphere Center Y = 105. -->
-            <!-- Discharge Sphere Assembly Y = True Target Y - Sphere cy = 105 - (-125) = 230. -->
-            <g id="dischargeSphereAssembly" transform="translate(550, 230)" style="cursor: grab;">
-                <!-- The arm connects the sphere (at cy -125) to the base. Base top is at y = 105 (relative to assembly group) -->
-                <rect id="movableSphereArm" x="-5" y="-125" width="10" height="230" fill="#d9d9d9" stroke="#a0a0a0" stroke-width="0.5"/>
-                <!-- The base is positioned at the bottom of the arm. -->
-                <rect id="movableSphereStandBase" x="-30" y="105" width="60" height="20" fill="#bfbfbf" rx="3" stroke="#909090" stroke-width="1"/>
-                <circle id="movableDischargeSphere" cx="0" cy="-125" r="35" fill="#e0e0e0" stroke="#777" stroke-width="1.5"/>
-                <g id="movableDischargeSphereCharges"></g>
+            <!-- Discharge Sphere Apparatus -->
+            <g id="dischargeSphereApparatus" transform="translate(300, 90)" style="cursor: grab;">
+                <rect id="dischargeHandle" x="-5" y="0" width="10" height="70" fill="#8B4513" rx="3" ry="3"/>
+                <circle id="dischargeSphere" cx="0" cy="-15" r="15" fill="#C0C0C0" stroke="#555" stroke-width="1"/>
+                <g id="dischargeSphereCharges"></g>
             </g>
 
-            <!-- Placeholder for Sparks Container -->
-            <g id="sparksContainer"></g>
-
-            <!-- Electric Papers Apparatus -->
-            <g id="electricPapersApparatus" transform="translate(450, 100)">
-                <!-- Insulating Stand -->
-                <rect id="papersStandBase" x="-20" y="30" width="40" height="15" fill="#a0522d" rx="3"/> <!-- Brownish, like wood or bakelite -->
-                <rect id="papersStandRod" x="-3" y="0" width="6" height="30" fill="#888888"/> <!-- Grey insulating rod -->
-
-                <!-- Conductive Rod/Plate holding the papers -->
-                <rect id="papersHolder" x="-25" y="-10" width="50" height="10" fill="#d0d0d0" stroke="#777" stroke-width="1" rx="2"/>
-                <g id="papersHolderCharges"></g>
-
-                <!-- Paper Strips/Pith Balls (initially hanging down) -->
-                <g id="paperStripsContainer">
-                    <path id="paperStrip1" d="M -15 -5 L -15 20 Q -10 25 -5 20 L -5 -5 Z" fill="#f0f0f0" stroke="#aaa" stroke-width="0.5" />
-                    <path id="paperStrip2" d="M 5 -5 L 5 20 Q 10 25 15 20 L 15 -5 Z" fill="#f0f0f0" stroke="#aaa" stroke-width="0.5" />
+            <!-- Two Movable Bunches of Papers Apparatus -->
+            <g id="twoBunchesApparatus" transform="translate(300, 200)" style="visibility: hidden;">
+                <!-- Bunch A (Left) -->
+                <g id="bunchA_assembly" transform="translate(0,0)" style="cursor: grab;">
+                    <circle id="bunchA_holder" cx="0" cy="0" r="8" fill="#d0d0d0" stroke="#777" stroke-width="1"/>
+                    <g id="bunchA_strips_container">
+                        <path id="bunchA_strip1" d="M 0 8 L 0 28 Z" stroke="#444" stroke-width="1.5" fill="none"/>
+                        <path id="bunchA_strip2" d="M -3 8 L -3 28 Z" stroke="#444" stroke-width="1.5" fill="none" style="transform-origin: -3px 8px;"/>
+                        <path id="bunchA_strip3" d="M 3 8 L 3 28 Z" stroke="#444" stroke-width="1.5" fill="none" style="transform-origin: 3px 8px;"/>
+                    </g>
+                    <g id="bunchA_charges"></g>
                 </g>
-                <text x="-25" y="55" font-family="Arial, sans-serif" font-size="12px" fill="#212529">Elec. Papers</text>
-            </g>
-
-            <!-- Two Spheres Attraction/Repulsion Apparatus -->
-            <g id="twoSpheresApparatus" transform="translate(500, 250)" style="visibility: hidden;">
-                <!-- Sphere A (connected to VdG dome) -->
-                <g id="sphereA_assembly">
-                    <rect id="sphereA_stand" x="-5" y="50" width="10" height="80" fill="#8B4513" rx="2"/>
-                    <line id="sphereA_wire" x1="0" y1="50" x2="0" y2="0" stroke="#777" stroke-width="1.5"/>
-                    <circle id="sphereA" cx="0" cy="0" r="15" fill="url(#metallicGradient)" stroke="#666" stroke-width="1"/>
-                    <path id="sphereA_strip" d="M 0 15 L 0 35 Z" stroke="#444" stroke-width="1.5" fill="none"/>
-                    <g id="sphereA_charges"></g>
+                <!-- Bunch B (Right) -->
+                <g id="bunchB_assembly" transform="translate(60,0)" style="cursor: grab;">
+                    <circle id="bunchB_holder" cx="0" cy="0" r="8" fill="#d0d0d0" stroke="#777" stroke-width="1"/>
+                     <g id="bunchB_strips_container">
+                        <path id="bunchB_strip1" d="M 0 8 L 0 28 Z" stroke="#444" stroke-width="1.5" fill="none"/>
+                        <path id="bunchB_strip2" d="M -3 8 L -3 28 Z" stroke="#444" stroke-width="1.5" fill="none" style="transform-origin: -3px 8px;"/>
+                        <path id="bunchB_strip3" d="M 3 8 L 3 28 Z" stroke="#444" stroke-width="1.5" fill="none" style="transform-origin: 3px 8px;"/>
+                    </g>
+                    <g id="bunchB_charges"></g>
                 </g>
-                <!-- Sphere B (connected to VdG base/ground) -->
-                <g id="sphereB_assembly" transform="translate(60, 0)"> <!-- Offset from Sphere A by 60px -->
-                    <rect id="sphereB_stand" x="-5" y="50" width="10" height="80" fill="#8B4513" rx="2"/>
-                    <line id="sphereB_wire" x1="0" y1="50" x2="0" y2="0" stroke="#777" stroke-width="1.5"/>
-                    <circle id="sphereB" cx="0" cy="0" r="15" fill="url(#metallicGradient)" stroke="#666" stroke-width="1"/>
-                    <path id="sphereB_strip" d="M 0 15 L 0 35 Z" stroke="#444" stroke-width="1.5" fill="none"/>
-                    <g id="sphereB_charges"></g>
-                </g>
-                <!-- Visual Connection Wires (paths will be defined/updated by JS for accuracy) -->
-                <path id="connectionToSphereA" d="M0 0" stroke="#aaa" stroke-width="2" fill="none" stroke-dasharray="4 2"/>
-                <path id="connectionToSphereB" d="M0 0" stroke="#aaa" stroke-width="2" fill="none" stroke-dasharray="4 2"/>
-                 <text x="0" y="145" font-family="Arial, sans-serif" font-size="12px" fill="#212529" text-anchor="middle">Two Spheres</text>
+                <!-- Visual Connection Wires (placeholders, d attributes to be set by JS) -->
+                <path id="connectionToBunchA" d="M0 0" stroke="#aaa" stroke-width="1.5" fill="none" stroke-dasharray="3 2"/>
+                <path id="connectionToBunchB" d="M0 0" stroke="#aaa" stroke-width="1.5" fill="none" stroke-dasharray="3 2"/>
+                <text x="30" y="50" font-size="10px" text-anchor="middle">Bunches</text>
             </g>
         </svg>
     </div>
