@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Van de Graaff</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos personalizados para elementos específicos */
+        .form-checkbox {
+            appearance: none;
+            appearance: none;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-color: #ffffff;
+            border: 2px solid #d1d5db;
+            border-radius: 0.25rem;
+            display: inline-block;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .form-checkbox:checked {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+        
+        .form-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+        
+        .form-radio {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-color: #ffffff;
+            border: 2px solid #d1d5db;
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .form-radio:checked {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+        
+        .form-radio:checked::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+        }
+        
+        /* Estilos para el slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none; 
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-webkit-slider-track {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            background: #2563eb;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        
+        input[type="range"]::-moz-range-track {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+            border: none;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            background: #2563eb;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        
+        /* Animaciones personalizadas */
+        @keyframes pulse-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 5px rgba(255, 255, 0, 0.5));
+            }
+            50% {
+                filter: drop-shadow(0 0 15px rgba(255, 255, 0, 0.8));
+            }
+        }
+        
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes spark-flicker {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+        
+        .spark-flicker {
+            animation: spark-flicker 0.1s ease-in-out infinite;
+        }
+        
+        /* Mejoras visuales */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .text-shadow {
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Scrollbar personalizado */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const VanDeGraaffSimulator = () => {
+            const [isRunning, setIsRunning] = useState(false);
+            const [voltage, setVoltage] = useState(0);
+            const [maxVoltage, setMaxVoltage] = useState(300000);
+            const [beltSpeed, setBeltSpeed] = useState(50);
+            const [showElectricField, setShowElectricField] = useState(true);
+            const [sparks, setSparks] = useState([]);
+            const [charges, setCharges] = useState([]);
+            const [dischargeTo, setDischargeTo] = useState('ground');
+            const [beltPosition, setBeltPosition] = useState(0);
+            const [sparkIntensity, setSparkIntensity] = useState(0);
+            
+            const animationRef = useRef();
+            const canvasRef = useRef();
+
+            // Animación principal
+            useEffect(() => {
+                if (isRunning) {
+                    const animate = () => {
+                        setBeltPosition(prev => (prev + (beltSpeed / 50) * 2) % 100);
+                        animationRef.current = requestAnimationFrame(animate);
+                    };
+                    animate();
+                } else {
+                    if (animationRef.current) {
+                        cancelAnimationFrame(animationRef.current);
+                    }
+                }
+                
+                return () => {
+                    if (animationRef.current) {
+                        cancelAnimationFrame(animationRef.current);
+                    }
+                };
+            }, [isRunning, beltSpeed]);
+
+            // Simulación de acumulación de voltaje
+            useEffect(() => {
+                if (isRunning) {
+                    const interval = setInterval(() => {
+                        setVoltage(prev => {
+                            const increment = (beltSpeed / 50) * 3000;
+                            const newVoltage = Math.min(prev + increment, maxVoltage);
+                            
+                            // Crear chispas automáticas cuando se alcanza el voltaje crítico
+                            if (newVoltage >= maxVoltage * 0.95) {
+                                createSpark();
+                                return newVoltage * 0.6; // Descarga parcial
+                            }
+                            
+                            return newVoltage;
+                        });
+                        
+                        // Generar cargas en la correa
+                        if (Math.random() < 0.2) {
+                            generateCharge();
+                        }
+                    }, 150);
+
+                    return () => clearInterval(interval);
+                } else {
+                    setVoltage(0);
+                    setCharges([]);
+                    setSparks([]);
+                }
+            }, [isRunning, beltSpeed, maxVoltage]);
+
+            const generateCharge = () => {
+                const newCharge = {
+                    id: Math.random(),
+                    position: 0,
+                    timestamp: Date.now(),
+                };
+                
+                setCharges(prev => [...prev.filter(c => Date.now() - c.timestamp < 3000), newCharge]);
+            };
+
+            const createSpark = () => {
+                const numSparks = Math.floor(Math.random() * 3) + 2;
+                const newSparks = [];
+                
+                for (let i = 0; i < numSparks; i++) {
+                    const spark = {
+                        id: Math.random(),
+                        path: generateSparkPath(),
+                        opacity: Math.random() * 0.6 + 0.4,
+                        width: Math.random() * 3 + 1,
+                        timestamp: Date.now(),
+                    };
+                    newSparks.push(spark);
+                }
+                
+                setSparks(newSparks);
+                setSparkIntensity(1);
+                
+                // Animar intensidad de chispa
+                let intensity = 1;
+                const fadeInterval = setInterval(() => {
+                    intensity -= 0.1;
+                    setSparkIntensity(Math.max(intensity, 0));
+                    if (intensity <= 0) {
+                        clearInterval(fadeInterval);
+                        setSparks([]);
+                    }
+                }, 50);
+            };
+
+            const generateSparkPath = () => {
+                const segments = [];
+                const numPoints = 15;
+                let currentX = 300; // Centro de la cúpula
+                let currentY = 120;
+                
+                const targetX = dischargeTo === 'ground' ? 300 + (Math.random() - 0.5) * 200 : 150;
+                const targetY = dischargeTo === 'ground' ? 450 : 250;
+                
+                for (let i = 0; i <= numPoints; i++) {
+                    const progress = i / numPoints;
+                    const baseX = currentX + (targetX - currentX) * progress;
+                    const baseY = currentY + (targetY - currentY) * progress;
+                    
+                    // Añadir variación aleatoria
+                    const offsetX = (Math.random() - 0.5) * 40 * (1 - progress * 0.5);
+                    const offsetY = (Math.random() - 0.5) * 30 * (1 - progress * 0.5);
+                    
+                    segments.push({
+                        x: baseX + offsetX,
+                        y: baseY + offsetY
+                    });
+                }
+                
+                return segments;
+            };
+
+            const toggleMachine = () => {
+                setIsRunning(!isRunning);
+            };
+
+            const performDischarge = () => {
+                if (voltage > 30000) {
+                    createSpark();
+                    setVoltage(prev => prev * 0.2);
+                }
+            };
+
+            const resetSimulation = () => {
+                setIsRunning(false);
+                setVoltage(0);
+                setCharges([]);
+                setSparks([]);
+                setSparkIntensity(0);
+            };
+
+            const renderElectricFieldLines = () => {
+                if (!showElectricField) return null;
+                
+                const lines = [];
+                const centerX = 300;
+                const centerY = 120;
+                const intensity = voltage / maxVoltage;
+                const fieldRadius = 60 + intensity * 40;
+                
+                for (let angle = 0; angle < 360; angle += 20) {
+                    const rad = (angle * Math.PI) / 180;
+                    const startX = centerX + Math.cos(rad) * 65;
+                    const startY = centerY + Math.sin(rad) * 65;
+                    const endX = centerX + Math.cos(rad) * fieldRadius;
+                    const endY = centerY + Math.sin(rad) * fieldRadius;
+                    
+                    lines.push(
+                        React.createElement('line', {
+                            key: angle,
+                            x1: startX,
+                            y1: startY,
+                            x2: endX,
+                            y2: endY,
+                            stroke: `rgba(0, 150, 255, ${intensity * 0.4})`,
+                            strokeWidth: "1",
+                            markerEnd: "url(#arrowhead)"
+                        })
+                    );
+                }
+                
+                return lines;
+            };
+
+            const renderBeltCharges = () => {
+                return charges.map(charge => {
+                    const age = Date.now() - charge.timestamp;
+                    const progress = (age / 3000);
+                    const y = 400 - progress * 280; // De abajo hacia arriba
+                    
+                    if (y < 120 || progress > 1) return null;
+                    
+                    return React.createElement('circle', {
+                        key: charge.id,
+                        cx: 300,
+                        cy: y,
+                        r: "4",
+                        fill: "#ffff00",
+                        stroke: "#ff8800",
+                        strokeWidth: "1",
+                        opacity: 1 - progress * 0.3
+                    });
+                });
+            };
+
+            const renderSparks = () => {
+                return sparks.map(spark => {
+                    const pathString = spark.path.reduce((acc, point, index) => {
+                        return acc + (index === 0 ? `M ${point.x} ${point.y}` : ` L ${point.x} ${point.y}`);
+                    }, '');
+                    
+                    return React.createElement('g', { key: spark.id }, [
+                        React.createElement('path', {
+                            key: `${spark.id}-glow`,
+                            d: pathString,
+                            stroke: "#00ffff",
+                            strokeWidth: spark.width * 2,
+                            fill: "none",
+                            opacity: spark.opacity * sparkIntensity * 0.8,
+                            filter: "url(#glow)"
+                        }),
+                        React.createElement('path', {
+                            key: `${spark.id}-core`,
+                            d: pathString,
+                            stroke: "#ffffff",
+                            strokeWidth: spark.width,
+                            fill: "none",
+                            opacity: sparkIntensity
+                        })
+                    ]);
+                });
+            };
+
+            return React.createElement('div', {
+                className: "w-full min-h-screen bg-gradient-to-b from-blue-100 to-blue-200 p-4"
+            }, [
+                React.createElement('div', {
+                    key: "container",
+                    className: "max-w-7xl mx-auto"
+                }, [
+                    React.createElement('h1', {
+                        key: "title",
+                        className: "text-4xl font-bold text-center mb-8 text-blue-900 text-shadow"
+                    }, "⚡ Simulador Van de Graaff ⚡"),
+                    
+                    React.createElement('div', {
+                        key: "main-content",
+                        className: "bg-white rounded-xl shadow-2xl p-6 glass-effect"
+                    }, [
+                        React.createElement('div', {
+                            key: "layout",
+                            className: "flex flex-col xl:flex-row gap-8"
+                        }, [
+                            // Área de simulación
+                            React.createElement('div', {
+                                key: "simulation-area",
+                                className: "flex-1"
+                            }, [
+                                React.createElement('svg', {
+                                    key: "svg",
+                                    width: "600",
+                                    height: "500",
+                                    className: "border-4 border-gray-400 rounded-xl bg-gradient-to-b from-sky-100 to-sky-50 shadow-inner mx-auto block"
+                                }, [
+                                    // Definiciones SVG
+                                    React.createElement('defs', { key: "defs" }, [
+                                        // Gradientes
+                                        React.createElement('radialGradient', {
+                                            key: "dome-gradient",
+                                            id: "dome",
+                                            cx: "50%",
+                                            cy: "30%",
+                                            r: "60%"
+                                        }, [
+                                            React.createElement('stop', { key: "dome-1", offset: "0%", stopColor: "#f0f0f0" }),
+                                            React.createElement('stop', { key: "dome-2", offset: "70%", stopColor: "#d0d0d0" }),
+                                            React.createElement('stop', { key: "dome-3", offset: "100%", stopColor: "#a0a0a0" })
+                                        ]),
+                                        
+                                        React.createElement('radialGradient', {
+                                            key: "base-gradient",
+                                            id: "base",
+                                            cx: "50%",
+                                            cy: "50%",
+                                            r: "50%"
+                                        }, [
+                                            React.createElement('stop', { key: "base-1", offset: "0%", stopColor: "#8b4513" }),
+                                            React.createElement('stop', { key: "base-2", offset: "100%", stopColor: "#654321" })
+                                        ]),
+                                        
+                                        React.createElement('linearGradient', {
+                                            key: "belt-gradient",
+                                            id: "belt",
+                                            x1: "0%",
+                                            y1: "0%",
+                                            x2: "100%",
+                                            y2: "0%"
+                                        }, [
+                                            React.createElement('stop', { key: "belt-1", offset: "0%", stopColor: "#2c2c2c" }),
+                                            React.createElement('stop', { key: "belt-2", offset: "50%", stopColor: "#404040" }),
+                                            React.createElement('stop', { key: "belt-3", offset: "100%", stopColor: "#2c2c2c" })
+                                        ]),
+                                        
+                                        // Efectos
+                                        React.createElement('filter', { key: "glow-filter", id: "glow" }, [
+                                            React.createElement('feGaussianBlur', { key: "blur", stdDeviation: "3", result: "coloredBlur" }),
+                                            React.createElement('feMerge', { key: "merge" }, [
+                                                React.createElement('feMergeNode', { key: "blur-node", in: "coloredBlur" }),
+                                                React.createElement('feMergeNode', { key: "source-node", in: "SourceGraphic" })
+                                            ])
+                                        ]),
+                                        
+                                        React.createElement('marker', {
+                                            key: "arrowhead",
+                                            id: "arrowhead",
+                                            markerWidth: "10",
+                                            markerHeight: "7",
+                                            refX: "0",
+                                            refY: "3.5",
+                                            orient: "auto"
+                                        }, [
+                                            React.createElement('polygon', {
+                                                key: "arrow-poly",
+                                                points: "0 0, 10 3.5, 0 7",
+                                                fill: "rgba(0, 150, 255, 0.6)"
+                                            })
+                                        ])
+                                    ]),
+                                    
+                                    // Campo eléctrico
+                                    ...renderElectricFieldLines(),
+                                    
+                                    // Base del generador
+                                    React.createElement('rect', {
+                                        key: "base",
+                                        x: "220",
+                                        y: "380",
+                                        width: "160",
+                                        height: "60",
+                                        fill: "url(#base)",
+                                        stroke: "#4a4a4a",
+                                        strokeWidth: "3",
+                                        rx: "8"
+                                    }),
+                                    
+                                    // Etiqueta de la base
+                                    React.createElement('text', {
+                                        key: "base-label",
+                                        x: "300",
+                                        y: "415",
+                                        textAnchor: "middle",
+                                        fill: "white",
+                                        fontSize: "14",
+                                        fontWeight: "bold"
+                                    }, "MOTOR"),
+                                    
+                                    // Columna de soporte
+                                    React.createElement('rect', {
+                                        key: "column",
+                                        x: "285",
+                                        y: "120",
+                                        width: "30",
+                                        height: "260",
+                                        fill: "#666666",
+                                        stroke: "#4a4a4a",
+                                        strokeWidth: "3",
+                                        rx: "5"
+                                    }),
+                                    
+                                    // Correa
+                                    React.createElement('rect', {
+                                        key: "belt",
+                                        x: "292",
+                                        y: "120",
+                                        width: "16",
+                                        height: "260",
+                                        fill: "url(#belt)",
+                                        stroke: "#333",
+                                        strokeWidth: "2"
+                                    }),
+                                    
+                                    // Marcas de movimiento en la correa
+                                    ...(isRunning ? [...Array(12)].map((_, i) => {
+                                        const offset = (beltPosition + i * 25) % 100;
+                                        const y = 120 + (offset / 100) * 260;
+                                        return React.createElement('rect', {
+                                            key: `belt-mark-${i}`,
+                                            x: "294",
+                                            y: y,
+                                            width: "12",
+                                            height: "4",
+                                            fill: "#555555",
+                                            opacity: "0.8"
+                                        });
+                                    }) : []),
+                                    
+                                    // Cargas en movimiento
+                                    ...renderBeltCharges(),
+                                    
+                                    // Cúpula superior
+                                    React.createElement('circle', {
+                                        key: "dome",
+                                        cx: "300",
+                                        cy: "120",
+                                        r: "60",
+                                        fill: "url(#dome)",
+                                        stroke: "#888888",
+                                        strokeWidth: "4"
+                                    }),
+                                    
+                                    // Brillo de la cúpula según voltaje
+                                    React.createElement('circle', {
+                                        key: "dome-glow",
+                                        cx: "300",
+                                        cy: "120",
+                                        r: 55 + (voltage / maxVoltage) * 15,
+                                        fill: "none",
+                                        stroke: `rgba(255, 255, 0, ${(voltage / maxVoltage) * 0.6})`,
+                                        strokeWidth: "4",
+                                        opacity: "0.8"
+                                    }),
+                                    
+                                    // Indicador de carga estática
+                                    voltage > 50000 ? React.createElement('circle', {
+                                        key: "static-indicator",
+                                        cx: "300",
+                                        cy: "120",
+                                        r: "65",
+                                        fill: "none",
+                                        stroke: "rgba(0, 255, 255, 0.5)",
+                                        strokeWidth: "2",
+                                        strokeDasharray: "5,5",
+                                        opacity: Math.sin(Date.now() / 200) * 0.3 + 0.7
+                                    }) : null,
+                                    
+                                    // Chispas
+                                    ...renderSparks(),
+                                    
+                                    // Objeto de descarga - Persona
+                                    dischargeTo === 'person' ? React.createElement('g', { key: "person" }, [
+                                        React.createElement('circle', {
+                                            key: "person-head",
+                                            cx: "150",
+                                            cy: "220",
+                                            r: "25",
+                                            fill: "#ffcccc",
+                                            stroke: "#ff9999",
+                                            strokeWidth: "2"
+                                        }),
+                                        React.createElement('text', {
+                                            key: "person-emoji",
+                                            x: "150",
+                                            y: "227",
+                                            textAnchor: "middle",
+                                            fill: "#666",
+                                            fontSize: "16"
+                                        }, "👤"),
+                                        React.createElement('text', {
+                                            key: "person-label",
+                                            x: "150",
+                                            y: "260",
+                                            textAnchor: "middle",
+                                            fill: "#666",
+                                            fontSize: "12"
+                                        }, "Persona")
+                                    ]) : null,
+                                    
+                                    // Conexión a tierra
+                                    dischargeTo === 'ground' ? React.createElement('g', { key: "ground" }, [
+                                        React.createElement('line', {
+                                            key: "ground-1",
+                                            x1: "450",
+                                            y1: "350",
+                                            x2: "450",
+                                            y2: "400",
+                                            stroke: "#666666",
+                                            strokeWidth: "6"
+                                        }),
+                                        React.createElement('line', {
+                                            key: "ground-2",
+                                            x1: "430",
+                                            y1: "400",
+                                            x2: "470",
+                                            y2: "400",
+                                            stroke: "#666666",
+                                            strokeWidth: "6"
+                                        }),
+                                        React.createElement('line', {
+                                            key: "ground-3",
+                                            x1: "435",
+                                            y1: "410",
+                                            x2: "465",
+                                            y2: "410",
+                                            stroke: "#666666",
+                                            strokeWidth: "4"
+                                        }),
+                                        React.createElement('line', {
+                                            key: "ground-4",
+                                            x1: "440",
+                                            y1: "420",
+                                            x2: "460",
+                                            y2: "420",
+                                            stroke: "#666666",
+                                            strokeWidth: "2"
+                                        }),
+                                        React.createElement('text', {
+                                            key: "ground-label",
+                                            x: "450",
+                                            y: "440",
+                                            textAnchor: "middle",
+                                            fill: "#666",
+                                            fontSize: "12"
+                                        }, "⏸ Tierra")
+                                    ]) : null,
+                                    
+                                    // Objeto conductor
+                                    dischargeTo === 'conductor' ? React.createElement('g', { key: "conductor" }, [
+                                        React.createElement('rect', {
+                                            key: "conductor-rect",
+                                            x: "480",
+                                            y: "200",
+                                            width: "40",
+                                            height: "60",
+                                            fill: "#c0c0c0",
+                                            stroke: "#888",
+                                            strokeWidth: "2",
+                                            rx: "5"
+                                        }),
+                                        React.createElement('text', {
+                                            key: "conductor-label",
+                                            x: "500",
+                                            y: "280",
+                                            textAnchor: "middle",
+                                            fill: "#666",
+                                            fontSize: "12"
+                                        }, "🔧 Conductor")
+                                    ]) : null,
+                                    
+                                    // Voltímetro digital
+                                    React.createElement('rect', {
+                                        key: "voltmeter",
+                                        x: "450",
+                                        y: "50",
+                                        width: "120",
+                                        height: "80",
+                                        fill: "#000000",
+                                        stroke: "#333333",
+                                        strokeWidth: "3",
+                                        rx: "5"
+                                    }),
+                                    
+                                    React.createElement('text', {
+                                        key: "voltmeter-title",
+                                        x: "510",
+                                        y: "70",
+                                        textAnchor: "middle",
+                                        fill: "#00ff00",
+                                        fontSize: "10",
+                                        fontFamily: "monospace"
+                                    }, "VOLTÍMETRO"),
+                                    
+                                    React.createElement('text', {
+                                        key: "voltmeter-value",
+                                        x: "510",
+                                        y: "95",
+                                        textAnchor: "middle",
+                                        fill: "#00ff00",
+                                        fontSize: "16",
+                                        fontFamily: "monospace",
+                                        fontWeight: "bold"
+                                    }, Math.round(voltage).toLocaleString()),
+                                    
+                                    React.createElement('text', {
+                                        key: "voltmeter-unit",
+                                        x: "510",
+                                        y: "115",
+                                        textAnchor: "middle",
+                                        fill: "#00ff00",
+                                        fontSize: "12",
+                                        fontFamily: "monospace"
+                                    }, "VOLTIOS"),
+                                    
+                                    // Indicador de peligro
+                                    voltage > maxVoltage * 0.7 ? React.createElement('g', { key: "danger" }, [
+                                        React.createElement('rect', {
+                                            key: "danger-bg",
+                                            x: "20",
+                                            y: "50",
+                                            width: "100",
+                                            height: "40",
+                                            fill: "#ff0000",
+                                            stroke: "#cc0000",
+                                            strokeWidth: "2",
+                                            rx: "5",
+                                            opacity: "0.9"
+                                        }),
+                                        React.createElement('text', {
+                                            key: "danger-text",
+                                            x: "70",
+                                            y: "75",
+                                            textAnchor: "middle",
+                                            fill: "white",
+                                            fontSize: "14",
+                                            fontWeight: "bold"
+                                        }, "⚠️ PELIGRO")
+                                    ]) : null,
+                                    
+                                    // Medidor de intensidad del campo
+                                    React.createElement('g', { key: "field-meter" }, [
+                                        React.createElement('text', {
+                                            key: "field-title",
+                                            x: "50",
+                                            y: "200",
+                                            fill: "#333",
+                                            fontSize: "12",
+                                            fontWeight: "bold"
+                                        }, "Campo Eléctrico"),
+                                        React.createElement('rect', {
+                                            key: "field-frame",
+                                            x: "50",
+                                            y: "210",
+                                            width: "20",
+                                            height: "100",
+                                            fill: "none",
+                                            stroke: "#333",
+                                            strokeWidth: "2"
+                                        }),
+                                        React.createElement('rect', {
+                                            key: "field-bar",
+                                            x: "52",
+                                            y: 310 - (voltage/maxVoltage)*96,
+                                            width: "16",
+                                            height: (voltage/maxVoltage)*96,
+                                            fill: `hsl(${120 - (voltage/maxVoltage)*120}, 70%, 50%)`
+                                        }),
+                                        React.createElement('text', {
+                                            key: "field-max",
+                                            x: "80",
+                                            y: "225",
+                                            fill: "#666",
+                                            fontSize: "10"
+                                        }, "Max"),
+                                        React.createElement('text', {
+                                            key: "field-min",
+                                            x: "80",
+                                            y: "315",
+                                            fill: "#666",
+                                            fontSize: "10"
+                                        }, "Min")
+                                    ])
+                                ])
+                            ]),
+                            
+                            // Panel de control
+                            React.createElement('div', {
+                                key: "control-panel",
+                                className: "w-full xl:w-96 space-y-6"
+                            }, [
+                                React.createElement('div', {
+                                    key: "main-controls",
+                                    className: "bg-gray-50 p-6 rounded-xl shadow-lg"
+                                }, [
+                                    React.createElement('h3', {
+                                        key: "main-title",
+                                        className: "text-xl font-bold mb-6 text-gray-800 text-center"
+                                    }, "🎛️ Controles Principal"),
+                                    
+                                    React.createElement('div', {
+                                        key: "main-buttons",
+                                        className: "space-y-4"
+                                    }, [
+                                        React.createElement('button', {
+                                            key: "toggle-button",
+                                            onClick: toggleMachine,
+                                            className: `w-full py-4 px-6 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105 ${
+                                                isRunning 
+                                                    ? 'bg-red-500 hover:bg-red-600 shadow-red-200 shadow-lg' 
+                                                    : 'bg-green-500 hover:bg-green-600 shadow-green-200 shadow-lg'
+                                            }`
+                                        }, isRunning ? '⏹️ DETENER MÁQUINA' : '▶️ INICIAR MÁQUINA'),
+                                        
+                                        React.createElement('button', {
+                                            key: "discharge-button",
+                                            onClick: performDischarge,
+                                            disabled: voltage < 30000,
+                                            className: `w-full py-4 px-6 rounded-xl font-bold text-white transition-all duration-300 transform ${
+                                                voltage >= 30000
+                                                    ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-200 shadow-lg hover:scale-105'
+                                                    : 'bg-gray-400 cursor-not-allowed'
+                                            }`
+                                        }, '⚡ DESCARGA MANUAL'),
+                                        
+                                        React.createElement('button', {
+                                            key: "reset-button",
+                                            onClick: resetSimulation,
+                                            className: "w-full py-3 px-6 rounded-xl font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-all duration-300 transform hover:scale-105"
+                                        }, '🔄 REINICIAR')
+                                    ])
+                                ]),
+                                
+                                React.createElement('div', {
+                                    key: "parameters",
+                                    className: "bg-gray-50 p-6 rounded-xl shadow-lg"
+                                }, [
+                                    React.createElement('h3', {
+                                        key: "params-title",
+                                        className: "text-xl font-bold mb-6 text-gray-800 text-center"
+                                    }, "⚙️ Parámetros"),
+                                    
+                                    React.createElement('div', {
+                                        key: "params-controls",
+                                        className: "space-y-6"
+                                    }, [
+                                        React.createElement('div', { key: "belt-speed" }, [
+                                            React.createElement('label', {
+                                                key: "belt-label",
+                                                className: "block text-sm font-medium text-gray-700 mb-3"
+                                            }, `Velocidad de la Correa: ${beltSpeed}%`),
+                                            React.createElement('input', {
+                                                key: "belt-slider",
+                                                type: "range",
+                                                min: "10",
+                                                max: "100",
+                                                value: beltSpeed,
+                                                onChange: (e) => setBeltSpeed(Number(e.target.value)),
+                                                className: "w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                            })
+                                        ]),
+                                        
+                                        React.createElement('div', { key: "max-voltage" }, [
+                                            React.createElement('label', {
+                                                key: "voltage-label",
+                                                className: "block text-sm font-medium text-gray-700 mb-3"
+                                            }, `Voltaje Máximo: ${maxVoltage.toLocaleString()}V`),
+                                            React.createElement('input', {
+                                                key: "voltage-slider",
+                                                type: "range",
+                                                min: "100000",
+                                                max: "500000",
+                                                step: "10000",
+                                                value: maxVoltage,
+                                                onChange: (e) => setMaxVoltage(Number(e.target.value)),
+                                                className: "w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                            })
+                                        ])
+                                    ])
+                                ]),
+                                
+                                React.createElement('div', {
+                                    key: "visualization",
+                                    className: "bg-gray-50 p-6 rounded-xl shadow-lg"
+                                }, [
+                                    React.createElement('h3', {
+                                        key: "viz-title",
+                                        className: "text-xl font-bold mb-6 text-gray-800 text-center"
+                                    }, "👁️ Visualización"),
+                                    
+                                    React.createElement('div', {
+                                        key: "viz-controls",
+                                        className: "space-y-4"
+                                    }, [
+                                        React.createElement('label', {
+                                            key: "field-checkbox",
+                                            className: "flex items-center space-x-3 cursor-pointer"
+                                        }, [
+                                            React.createElement('input', {
+                                                key: "field-input",
+                                                type: "checkbox",
+                                                checked: showElectricField,
+                                                onChange: (e) => setShowElectricField(e.target.checked),
+                                                className: "form-checkbox h-6 w-6 text-blue-600"
+                                            }),
+                                            React.createElement('span', {
+                                                key: "field-text",
+                                                className: "text-sm font-medium text-gray-700"
+                                            }, "Mostrar Campo Eléctrico")
+                                        ])
+                                    ])
+                                ]),
+                                
+                                React.createElement('div', {
+                                    key: "discharge-type",
+                                    className: "bg-gray-50 p-6 rounded-xl shadow-lg"
+                                }, [
+                                    React.createElement('h3', {
+                                        key: "discharge-title",
+                                        className: "text-xl font-bold mb-6 text-gray-800 text-center"
+                                    }, "🎯 Tipo de Descarga"),
+                                    
+                                    React.createElement('div', {
+                                        key: "discharge-options",
+                                        className: "space-y-3"
+                                    }, [
+                                        React.createElement('label', {
+                                            key: "ground-option",
+                                            className: "flex items-center space-x-3 cursor-pointer"
+                                        }, [
+                                            React.createElement('input', {
+                                                key: "ground-radio",
+                                                type: "radio",
+                                                name: "discharge",
+                                                value: "ground",
+                                                checked: dischargeTo === 'ground',
+                                                onChange: (e) => setDischargeTo(e.target.value),
+                                                className: "form-radio h-5 w-5 text-blue-600"
+                                            }),
+                                            React.createElement('span', {
+                                                key: "ground-text",
+                                                className: "text-sm font-medium text-gray-700"
+                                            }, "🌍 Conexión a Tierra")
+                                        ]),
+                                        
+                                        React.createElement('label', {
+                                            key: "person-option",
+                                            className: "flex items-center space-x-3 cursor-pointer"
+                                        }, [
+                                            React.createElement('input', {
+                                                key: "person-radio",
+                                                type: "radio",
+                                                name: "discharge",
+                                                value: "person",
+                                                checked: dischargeTo === 'person',
+                                                onChange: (e) => setDischargeTo(e.target.value),
+                                                className: "form-radio h-5 w-5 text-blue-600"
+                                            }),
+                                            React.createElement('span', {
+                                                key: "person-text",
+                                                className: "text-sm font-medium text-gray-700"
+                                            }, "👤 Persona")
+                                        ]),
+                                        
+                                        React.createElement('label', {
+                                            key: "conductor-option",
+                                            className: "flex items-center space-x-3 cursor-pointer"
+                                        }, [
+                                            React.createElement('input', {
+                                                key: "conductor-radio",
+                                                type: "radio",
+                                                name: "discharge",
+                                                value: "conductor",
+                                                checked: dischargeTo === 'conductor',
+                                                onChange: (e) => setDischargeTo(e.target.value),
+                                                className: "form-radio h-5 w-5 text-blue-600"
+                                            }),
+                                            React.createElement('span', {
+                                                key: "conductor-text",
+                                                className: "text-sm font-medium text-gray-700"
+                                            }, "🔧 Objeto Conductor")
+                                        ])
+                                    ])
+                                ]),
+                                
+                                React.createElement('div', {
+                                    key: "status",
+                                    className: "bg-blue-50 p-6 rounded-xl border-2 border-blue-200 shadow-lg"
+                                }, [
+                                    React.createElement('h4', {
+                                        key: "status-title",
+                                        className: "font-bold text-blue-800 mb-4 text-center text-lg"
+                                    }, "📊 Estado Actual"),
+                                    React.createElement('div', {
+                                        key: "status-info",
+                                        className: "text-sm text-blue-700 space-y-2"
+                                    }, [
+                                        React.createElement('p', { key: "machine-status" }, `• Máquina: ${isRunning ? 'Funcionando ⚡' : 'Detenida ⏹️'}`),
+                                        React.createElement('p', { key: "voltage-status" }, `• Voltaje: ${Math.round(voltage).toLocaleString()}V`),
+                                        React.createElement('p', { key: "charge-status" }, `• Carga: ${Math.round((voltage/maxVoltage)*100)}%`),
+                                        React.createElement('p', { key: "charges-status" }, `• Cargas activas: ${charges.length}`),
+                                        React.createElement('p', { key: "field-status" }, `• Campo eléctrico: ${showElectricField ? 'Visible' : 'Oculto'}`)
+                                    ])
+                                ]),
+                                
+                                React.createElement('div', {
+                                    key: "safety",
+                                    className: "bg-yellow-50 p-6 rounded-xl border-2 border-yellow-200 shadow-lg"
+                                }, [
+                                    React.createElement('h4', {
+                                        key: "safety-title",
+                                        className: "font-bold text-yellow-800 mb-4 text-center text-lg"
+                                    }, "⚠️ Información de Seguridad"),
+                                    React.createElement('div', {
+                                        key: "safety-content",
+                                        className: "text-sm text-yellow-700 space-y-2"
+                                    }, [
+                                        React.createElement('p', { key: "safety-text1" }, "Los generadores Van de Graaff reales pueden generar voltajes muy altos que son peligrosos."),
+                                        React.createElement('p', { key: "safety-text2" }, "Siempre mantenga distancia segura y siga protocolos de laboratorio apropiados."),
+                                        React.createElement('p', { key: "safety-text3" }, "Este simulador es solo para propósitos educativos.")
+                                    ])
+                                ])
+                            ])
+                        ])
+                    ])
+                ])
+            ]);
+        };
+
+        ReactDOM.render(React.createElement(VanDeGraaffSimulator), document.getElementById('root'));
+    </script>
+</body>
+</html>
